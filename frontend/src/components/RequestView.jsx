@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button.js";
 import { Separator } from "@/components/ui/separator"
 import { HotkeysProvider, useHotkeys } from "@/services/HotkeysContext.jsx";
 import hotkeys from "hotkeys-js";
+import { CommandDialog, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
+import { FolderClosed } from "lucide-react";
 
 const buildCollectionTree = (collections) => {
     const collectionMap = {};
@@ -76,7 +78,7 @@ function RequestView({ request }) {
     const [activeTab, setActiveTab] = useState("body");
     const [headerType, setHeaderType] = useState("raw");
     const [headersKV, setHeadersKV] = useState([{ key: "", value: "" }]);
-    const [headersRaw, setHeadersRaw] = useState(request?.headers || '{"Content-Type":"application/json"}');
+    const [headersRaw, setHeadersRaw] = useState(request?.headers);
     const [headersExpanded, setHeadersExpanded] = useState(false);
     const [bodyType, setBodyType] = useState(request?.bodyType || "none");
     const [bodyRaw, setBodyRaw] = useState(request?.body || "");
@@ -173,19 +175,46 @@ function RequestView({ request }) {
         setErrorMessage("");
     }, [fullRequest]);
 
+    
+    const flattenCollections = (tree, level = 0) => {
+        let result = [];
+        for (const col of tree) {
+            result.push({ ...col, level });
+            if (col.children && col.children.length > 0) {
+                result = result.concat(flattenCollections(col.children, level + 1));
+            }
+        }
+        return result;
+    };
+    
+
+    //TODO: Improve this, functional but ugly
     const renderCollectionsTab = () => {
         const collectionTree = buildCollectionTree(collections);
-        console.log(collectionTree)
+        const flatCollections = flattenCollections(collectionTree);
         return (
-            <div className="p-1 overflow-auto selectable">
-                <Separator className={`mb-2`}/>
-                {collectionTree.map((collection) => (
-                    <CollectionItem
-                        handleSaveRequestToCollection={handleSaveRequestToCollection}
-                        collection={collection}
-                    />
+            <CommandList>
+                <CommandItem
+                    key="nofolder"
+                    onSelect={() => handleSaveRequestToCollection(null)}
+                >
+                    <span className="inline-flex items-center">
+                        <FolderClosed className="w-4 h-4 mr-2 text-slate-400" />
+                        No Folder
+                    </span>
+                </CommandItem>
+                {flatCollections.map((col) => (
+                    <CommandItem
+                        key={col.id}
+                        onSelect={() => handleSaveRequestToCollection(col.id)}
+                    >
+                        <span className="inline-flex items-center" style={{ paddingLeft: `${col.level * 16}px` }}>
+                            <FolderClosed className="w-4 h-4 mr-2 text-blue-400" />
+                            {col.name}
+                        </span>
+                    </CommandItem>
                 ))}
-            </div>
+            </CommandList>
         );
     };
 
@@ -295,22 +324,57 @@ function RequestView({ request }) {
         graphqlVariables,
     ]);
 
+    
+    const getDefaultContentType = () => {
+        if (bodyType === "graphql") return "application/json"; 
+        if (bodyType === "raw") {
+            switch (bodyFormat) {
+                case "JSON": return "application/json";
+                case "JavaScript": return "application/javascript";
+                case "HTML": return "text/html";
+                case "XML": return "application/xml";
+                case "Text":
+                default: return "text/plain";
+            }
+        }
+        return undefined;
+    };
+
+
+    const buildHeadersObject = () => {
+        let headersObj = {};
+        if (headerType === "raw") {
+            try {
+                headersObj = JSON.parse(headersRaw) || {};
+            } catch {
+                headersObj = {};
+            }
+        } else if (headerType === "keyvalue") {
+            headersObj = {};
+            headersKV.forEach(h => {
+                if (h.key && h.value) headersObj[h.key] = h.value;
+            });
+        }
+        
+        const hasContentType = Object.keys(headersObj).some(
+            k => k.toLowerCase() === "content-type"
+        );
+        if (!hasContentType) {
+            const defaultType = getDefaultContentType();
+            if (defaultType) headersObj["Content-Type"] = defaultType;
+        }
+        return headersObj;
+    };
+
+    const buildHeadersString = () => JSON.stringify(buildHeadersObject());
+
     const handleExecute = async () => {
         setIsLoading(true);
         setErrorMessage("");
         setResponseData(null);
         let finalHeaders = '';
         try {
-            if (headerType === "raw") {
-                JSON.parse(headersRaw);
-                finalHeaders = headersRaw;
-            } else if (headerType === "keyvalue") {
-                finalHeaders = JSON.stringify(
-                    headersKV.filter(h => h.key.trim() !== '')
-                );
-            } else {
-                finalHeaders = '[]';
-            }
+            finalHeaders = buildHeadersString();
         } catch (e) {
             setIsLoading(false);
             setErrorMessage("Invalid headers format: " + e.message);
@@ -444,6 +508,56 @@ function RequestView({ request }) {
         );
     };
 
+    const prefillContentTypeHeader = (newType, newFormat) => {
+        const contentType = (() => {
+            if (newType === "graphql") return "application/json";
+            if (newType === "raw") {
+                switch (newFormat) {
+                    case "JSON": return "application/json";
+                    case "JavaScript": return "application/javascript";
+                    case "HTML": return "text/html";
+                    case "XML": return "application/xml";
+                    case "Text":
+                    default: return "text/plain";
+                }
+            }
+            return undefined;
+        })();
+        if (!contentType) return;
+        if (headerType === "raw") {
+            let headersObj = {};
+            try {
+                headersObj = headersRaw ? JSON.parse(headersRaw) : {};
+            } catch { headersObj = {}; }
+            headersObj["Content-Type"] = contentType;
+            setHeadersRaw(JSON.stringify(headersObj, null, 2));
+        } else if (headerType === "keyvalue") {
+            let found = false;
+            const newKV = headersKV.map(h => {
+                if (h.key.toLowerCase() === "content-type") {
+                    found = true;
+                    return { key: "Content-Type", value: contentType };
+                }
+                return h;
+            });
+            if (!found) {
+                newKV.push({ key: "Content-Type", value: contentType });
+            }
+            setHeadersKV(newKV);
+        }
+    };
+
+
+    useEffect(() => {
+        prefillContentTypeHeader(bodyType, bodyFormat);
+    }, [bodyType]);
+
+    useEffect(() => {
+        if (bodyType === "raw") {
+            prefillContentTypeHeader(bodyType, bodyFormat);
+        }
+    }, [bodyFormat]);
+
     return (
         <div className="request-view flex flex-col max-h-[90vh] overflow-hidden p-2 rounded-lg shadow-lg w-full">
             {errorMessage && (
@@ -453,9 +567,11 @@ function RequestView({ request }) {
             )}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent>
-                    <div className="m-4 text-left">
-                        <Button onClick={() => handleSaveRequestToCollection(null)} className="m-1 font-medium w-full text-left ">No Folder</Button>
-                        {renderCollectionsTab()}
+                    <div className="m-2">
+                        <CommandDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} title="Save to Collection" description="Choose a collection to save this request to.">
+                            <CommandInput placeholder="Search collections..." />
+                            {renderCollectionsTab()}
+                        </CommandDialog>
                     </div>
                     <DialogFooter>
                     </DialogFooter>
@@ -476,13 +592,6 @@ function RequestView({ request }) {
                     </h2>
                 </div>
                 <div className="flex-none flex flex-row justify-between mb-1">
-                    <button
-                        onClick={handleSaveRequest}
-                        disabled={isLoading}
-                        className="bg-gray-700 px-3 mr-1 py-1 rounded hover:bg-gray-600 transition disabled:opacity-50"
-                    >
-                        {isLoading ? "Saving..." : "Save"}
-                    </button>
                     <button
                         onClick={handleSaveRequestToCollection}
                         disabled={isLoading}

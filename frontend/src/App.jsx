@@ -115,7 +115,7 @@ function App() {
             name: 'Untitled Request',
             method: 'GET',
             url: '',
-            headers: '{"Content-Type": "application/json"}',
+            headers: '', 
             body: '',
             isNew: true,
             type: 'request'
@@ -179,7 +179,7 @@ function App() {
                 name: "Untitled Request",
                 method: "GET",
                 url: "",
-                headers: '{"Content-Type": "application/json"}',
+                headers: '', // No default Content-Type
                 body: "",
                 isNew: true,
                 type: 'request'
