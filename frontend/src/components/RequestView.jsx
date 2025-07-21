@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
-import { ExecuteRequest, SaveRequest, GetRequest, UpdateRequest } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js";
+import { ExecuteRequest, GetRequest } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js";
 import { githubDark } from "@uiw/codemirror-theme-github";
 import { Input } from "@/components/ui/input.js";
 import { EnvarSupportedInput } from "@/components/EnvarSupportedInput.jsx";
-import { useEnvarStore } from "@/stores/envarStore.js";
 import { methodColourMap } from "../utils/constants.js";
 import { useRequestStore } from "@/stores/requestStore.js"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog.js";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog.js";
 import { Button } from "@/components/ui/button.js";
-import { Separator } from "@/components/ui/separator"
-import { HotkeysProvider, useHotkeys } from "@/services/HotkeysContext.jsx";
+import { useHotkeys } from "@/services/HotkeysContext.jsx";
 import hotkeys from "hotkeys-js";
 import { CommandDialog, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
 import { FolderClosed } from "lucide-react";
@@ -20,7 +18,7 @@ const buildCollectionTree = (collections) => {
     const collectionMap = {};
     const tree = [];
     collections.forEach((col) => {
-        collectionMap[col.id] = { ...col, children: [] };
+        collectionMap[col.id] = { ...col, children: [] };   
     });
     collections.forEach((col) => {
         if (col.parentCollectionId && collectionMap[col.parentCollectionId]) {
@@ -91,13 +89,8 @@ function RequestView({ request }) {
     const [responseTab, setResponseTab] = useState("body");
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
-    const envs = useEnvarStore(state => state.environmentVariables);
-    const activeEnv = useEnvarStore(state => state.activeEnvironment);
-    const collections = useRequestStore((state) => state.collections);
-    const collectionTree = buildCollectionTree(collections)
-    console.log("collection tree")
-    console.log(collectionTree)
 
+    const collections = useRequestStore((state) => state.collections);
     const isInitialAutosave = useRef(true);
     const saveTimeout = useRef(null);
     const isSyncingFromSave = useRef(false);
@@ -117,6 +110,7 @@ function RequestView({ request }) {
             try {
                 const fetched = await GetRequest(request.id);
                 setFullRequest(fetched);
+                console.log("fetched request", fetched)
             } catch (e) {
                 console.error(e);
                 setErrorMessage("Failed to fetch request details.");
@@ -137,6 +131,7 @@ function RequestView({ request }) {
         setDescription(fullRequest.description || "");
         setBodyFormat(fullRequest.bodyFormat || "JSON");
         setCollectionName(fullRequest.collectionName || "");
+
         try {
             const parsed = JSON.parse(fullRequest.headers);
             if (Array.isArray(parsed) && parsed.every(h => "key" in h && "value" in h)) {
@@ -150,6 +145,7 @@ function RequestView({ request }) {
             setHeaderType("keyvalue");
             setHeadersKV([{ key: "", value: "" }]);
         }
+
         const bt = fullRequest.bodyType || "none";
         setBodyType(bt);
         switch (bt) {
@@ -169,12 +165,55 @@ function RequestView({ request }) {
             default:
                 setBodyRaw("");
         }
-        setResponseData(null);
-        setResponseHeaders("");
-        setResponseBody("");
+
+        if (fullRequest.response) {
+            try {
+                const response = fullRequest.response;
+                setResponseData(response);
+
+                let headersToDisplay = "";
+                if (typeof response.headers === "string") {
+                    try {
+                        const parsedHeaders = JSON.parse(response.headers);
+                        headersToDisplay = JSON.stringify(parsedHeaders, null, 2);
+                    } catch {
+                        headersToDisplay = response.headers;
+                    }
+                } else if (typeof response.headers === "object") {
+                    headersToDisplay = JSON.stringify(response.headers, null, 2);
+                }
+                setResponseHeaders(headersToDisplay);
+
+
+                let bodyToDisplay = "";
+                if (typeof response.body === "string") {
+                    try {
+                        const parsedBody = JSON.parse(response.body);
+                        bodyToDisplay = JSON.stringify(parsedBody, null, 2);
+                    } catch {
+                        bodyToDisplay = response.body;
+                    }
+                } else if (typeof response.body === "object") {
+                    bodyToDisplay = JSON.stringify(response.body, null, 2);
+                } else {
+                    bodyToDisplay = response.body?.toString() || "";
+                }
+                setResponseBody(bodyToDisplay);
+
+            } catch (error) {
+                console.error("Error parsing existing response:", error);
+                setResponseData(null);
+                setResponseHeaders("");
+                setResponseBody("");
+            }
+        } else {
+            setResponseData(null);
+            setResponseHeaders("");
+            setResponseBody("");
+        }
+
         setErrorMessage("");
     }, [fullRequest]);
-
     
     const flattenCollections = (tree, level = 0) => {
         let result = [];
@@ -248,9 +287,17 @@ function RequestView({ request }) {
 
     const handleSaveRequest = async () => {
         setIsLoading(true)
-        console.log(fullRequest)
-        console.log(url)
         try {
+            let responseDataToSave = null;
+            if (responseData) {
+                responseDataToSave = { ...responseData };
+                if (typeof responseDataToSave.body !== 'string') {
+                    responseDataToSave.body = JSON.stringify(responseDataToSave.body);
+                }
+                if (typeof responseDataToSave.headers !== 'string') {
+                    responseDataToSave.headers = JSON.stringify(responseDataToSave.headers);
+                }
+            }
             const saved = await saveRequest({
                 id:        fullRequest?.id,
                 collectionId: request.collectionId,
@@ -262,7 +309,8 @@ function RequestView({ request }) {
                 body:    bodyRaw,
                 bodyType: bodyType,
                 bodyFormat: bodyFormat,
-                auth: auth
+                auth: auth,
+                response: responseDataToSave
             })
         } catch (e) {
             console.error(e)
@@ -275,7 +323,20 @@ function RequestView({ request }) {
     const handleSaveRequestToCollection = async (collectionId) => {
         setIsLoading(true)
         setIsDialogOpen(true)
+
+
         try {
+            let responseDataToSave = null;
+            if (responseData) {
+                responseDataToSave = { ...responseData };
+
+                if (typeof responseDataToSave.body !== 'string') {
+                    responseDataToSave.body = JSON.stringify(responseDataToSave.body);
+                }
+                if (typeof responseDataToSave.headers !== 'string') {
+                    responseDataToSave.headers = JSON.stringify(responseDataToSave.headers);
+                }
+            }
             const saved = await saveRequest({
                 id:        fullRequest?.id,
                 collectionId: collectionId,
@@ -287,7 +348,8 @@ function RequestView({ request }) {
                 body:    bodyRaw,
                 bodyType: bodyType,
                 bodyFormat: bodyFormat,
-                auth: auth
+                auth: auth,
+                response: responseDataToSave
             })
             setIsDialogOpen(false)
         } catch (e) {

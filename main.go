@@ -79,7 +79,7 @@ func main() {
 			headers TEXT,
 			body TEXT,
 			runtime_ms INTEGER,
-			request_id INTEGER
+			request_id INTEGER,
 		);
 
 		CREATE TABLE IF NOT EXISTS hotkey_binds (

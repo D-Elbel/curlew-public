@@ -111,10 +111,11 @@ export function GetRequest(id) {
  * @param {string} bodyType
  * @param {string} bodyFormat
  * @param {string} auth
+ * @param {$models.Response | null} response
  * @returns {Promise<$models.Request> & { cancel(): void }}
  */
-export function SaveRequest(collectionId, name, description, method, url, headers, body, bodyType, bodyFormat, auth) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1341307122, collectionId, name, description, method, url, headers, body, bodyType, bodyFormat, auth));
+export function SaveRequest(collectionId, name, description, method, url, headers, body, bodyType, bodyFormat, auth, response) {
+    let $resultPromise = /** @type {any} */($Call.ByID(1341307122, collectionId, name, description, method, url, headers, body, bodyType, bodyFormat, auth, response));
     let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
         return $$createType2($result);
     }));
@@ -178,10 +179,11 @@ export function UpdateCollectionParent(collectionId, parentId) {
  * @param {string} bodyType
  * @param {string} bodyFormat
  * @param {string} auth
+ * @param {$models.Response | null} response
  * @returns {Promise<$models.Request> & { cancel(): void }}
  */
-export function UpdateRequest(id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1380900686, id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth));
+export function UpdateRequest(id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response) {
+    let $resultPromise = /** @type {any} */($Call.ByID(1380900686, id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response));
     let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
         return $$createType2($result);
     }));

@@ -23,15 +23,15 @@ export const useRequestStore = create((set, get) => ({
     },
 
     // Save or update a request, then inject into state
-    saveRequest: async ({id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth}) => {
+    saveRequest: async ({id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response}) => {
         let saved
         console.log(id, collectionId, name, description, method, requestUrl)
         if (id) {
-            // UpdateRequest(id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth)
-            saved = await UpdateRequest(id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth)
+            // UpdateRequest(id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response)
+            saved = await UpdateRequest(id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response)
         } else {
-            // SaveRequest(collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth)
-            saved = await SaveRequest(collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth)
+            // SaveRequest(collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response)
+            saved = await SaveRequest(collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response)
         }
 
         set(state => {

@@ -19,18 +19,19 @@ type RequestCRUDService struct {
 }
 
 type Request struct {
-	ID             int     `json:"id"`
-	CollectionID   *string `json:"collectionId"`
-	CollectionName *string `json:"collectionName"`
-	Name           string  `json:"name"`
-	Description    string  `json:"description"`
-	Method         string  `json:"method"`
-	URL            string  `json:"url"`
-	Headers        string  `json:"headers"`
-	Body           string  `json:"body"`
-	BodyType       string  `json:"bodyType"`
-	BodyFormat     string  `json:"bodyFormat"`
-	Auth           string  `json:"auth"`
+	ID             int       `json:"id"`
+	CollectionID   *string   `json:"collectionId"`
+	CollectionName *string   `json:"collectionName"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	Method         string    `json:"method"`
+	URL            string    `json:"url"`
+	Headers        string    `json:"headers"`
+	Body           string    `json:"body"`
+	BodyType       string    `json:"bodyType"`
+	BodyFormat     string    `json:"bodyFormat"`
+	Auth           string    `json:"auth"`
+	Response       *Response `json:"response,omitempty"`
 }
 
 type DbRequest struct {
@@ -90,6 +91,13 @@ func (s *RequestCRUDService) GetRequest(id int) Request {
 		Body:           nullStringToEmptyString(dbR.Body),
 		BodyType:       nullStringToEmptyString(dbR.BodyType),
 		BodyFormat:     nullStringToEmptyString(dbR.BodyFormat),
+	}
+
+	var resp Response
+	respErr := s.db.QueryRow("SELECT id, status_code, headers, body, runtime_ms, request_id FROM responses WHERE request_id = ? ORDER BY id DESC LIMIT 1", dbR.ID).
+		Scan(&resp.ID, &resp.StatusCode, &resp.Headers, &resp.Body, &resp.RuntimeMS, &resp.RequestID)
+	if respErr == nil {
+		r.Response = &resp
 	}
 
 	return r
@@ -278,7 +286,7 @@ func encodeError(err error) json.RawMessage {
 	return errorJSON
 }
 
-func (s *RequestCRUDService) SaveRequest(collectionId *string, name string, description string, method string, url string, headers string, body string, bodyType string, bodyFormat string, auth string) Request {
+func (s *RequestCRUDService) SaveRequest(collectionId *string, name string, description string, method string, url string, headers string, body string, bodyType string, bodyFormat string, auth string, response *Response) Request {
 	var newRequest = Request{
 		CollectionID: collectionId,
 		Name:         name,
@@ -308,10 +316,19 @@ func (s *RequestCRUDService) SaveRequest(collectionId *string, name string, desc
 		return Request{}
 	}
 
+	// Insert response if provided
+	if response != nil {
+		_, respErr := s.db.Exec("INSERT INTO responses (status_code, headers, body, runtime_ms, request_id) VALUES (?, ?, ?, ?, ?)",
+			response.StatusCode, response.Headers, response.Body, response.RuntimeMS, newRequest.ID)
+		if respErr != nil {
+			fmt.Println("Failed to insert response:", respErr)
+		}
+	}
+
 	return newRequest
 }
 
-func (s *RequestCRUDService) UpdateRequest(id int, collectionId *string, name string, description string, method string, requestUrl string, headers string, body string, bodyType string, bodyFormat string, auth string) Request {
+func (s *RequestCRUDService) UpdateRequest(id int, collectionId *string, name string, description string, method string, requestUrl string, headers string, body string, bodyType string, bodyFormat string, auth string, response *Response) Request {
 	_, err := s.db.Exec(
 		`UPDATE requests
          SET collection_id = ?, name = ?, description = ?, method = ?, url = ?, headers = ?, body = ?, body_type = ?, body_format = ?, auth = ?
@@ -331,6 +348,14 @@ func (s *RequestCRUDService) UpdateRequest(id int, collectionId *string, name st
 	if err != nil {
 		fmt.Println("Failed to update request:", err)
 		return Request{}
+	}
+
+	if response != nil {
+		_, respErr := s.db.Exec("INSERT INTO responses (status_code, headers, body, runtime_ms, request_id) VALUES (?, ?, ?, ?, ?)",
+			response.StatusCode, response.Headers, response.Body, response.RuntimeMS, id)
+		if respErr != nil {
+			fmt.Println("Failed to insert response:", respErr)
+		}
 	}
 
 	return Request{

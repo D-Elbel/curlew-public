@@ -145,6 +145,13 @@ export class Request {
              */
             this["auth"] = "";
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {Response | null | undefined}
+             */
+            this["response"] = null;
+        }
 
         Object.assign(this, $$source);
     }
@@ -155,7 +162,78 @@ export class Request {
      * @returns {Request}
      */
     static createFrom($$source = {}) {
+        const $$createField12_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("response" in $$parsedSource) {
+            $$parsedSource["response"] = $$createField12_0($$parsedSource["response"]);
+        }
         return new Request(/** @type {Partial<Request>} */($$parsedSource));
     }
 }
+
+export class Response {
+    /**
+     * Creates a new Response instance.
+     * @param {Partial<Response>} [$$source = {}] - The source object to create the Response.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["id"] = 0;
+        }
+        if (!("statusCode" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["statusCode"] = 0;
+        }
+        if (!("headers" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["headers"] = "";
+        }
+        if (!("body" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["body"] = "";
+        }
+        if (!("runtimeMS" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["runtimeMS"] = 0;
+        }
+        if (!("requestID" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["requestID"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Response instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Response}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Response(/** @type {Partial<Response>} */($$parsedSource));
+    }
+}
+
+// Private type creation functions
+const $$createType0 = Response.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);
