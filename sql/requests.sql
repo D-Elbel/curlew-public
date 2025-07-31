@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    collection_id TEXT NOT NULL,
+    name TEXT,
+    description TEXT,
+    method TEXT,
+    url TEXT,
+    headers TEXT,
+    body TEXT,
+    body_type TEXT,
+    auth TEXT,
+    body_format TEXT,
+    FOREIGN KEY (collection_id) REFERENCES collections (id)
+);

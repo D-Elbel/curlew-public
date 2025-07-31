@@ -30,76 +30,11 @@ func main() {
 		log.Fatal(openDbErr)
 	}
 
-	createTableSQL := `
-		CREATE TABLE IF NOT EXISTS requests (
-		    id INTEGER PRIMARY KEY AUTOINCREMENT,
-	  		collection_id TEXT NOT NULL,
-	  		name TEXT,
-	  		description TEXT,
-	  		method TEXT,
-	  		url TEXT,
-	  		headers TEXT, 
-	  		body TEXT,     
-	  		body_type TEXT,
-	  		auth TEXT,    
-	  		body_format TEXT,
-	  		FOREIGN KEY(collection_id) REFERENCES collections(id)
-				);
-
-		CREATE TABLE IF NOT EXISTS environments (
-			id TEXT PRIMARY KEY,
-			name TEXT NOT NULL,
-			description TEXT
-		);
-	
-		CREATE TABLE IF NOT EXISTS environment_variables (
-  			id INTEGER PRIMARY KEY AUTOINCREMENT,
-  			environment_id TEXT NOT NULL,
-  			key TEXT NOT NULL,
-  			value TEXT,
-  			type TEXT,
-  			FOREIGN KEY(environment_id) REFERENCES environments(id)
-		);
-		
-		CREATE TABLE IF NOT EXISTS collections (
-			id TEXT PRIMARY KEY,            
-			name TEXT NOT NULL,             
-			description TEXT,               
-		  	schema TEXT,                    
-			version_major INTEGER,          
-			version_minor INTEGER,
-		  	version_patch INTEGER,
-		  	version_identifier TEXT,
-		  	parent_collection TEXT
-		);
-
-		CREATE TABLE IF NOT EXISTS responses (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			status_code INTEGER,
-			headers TEXT,
-			body TEXT,
-			runtime_ms INTEGER,
-			request_id INTEGER
-		);
-
-		CREATE TABLE IF NOT EXISTS hotkey_binds (
-		    Command TEXT NOT NULL PRIMARY KEY,
-		    Bind TEXT
-		);
-		
-		INSERT INTO hotkey_binds (Command, Bind) VALUES ('OPEN_SEARCH_COMMAND', 'ctrl+k'), ('OPEN_TAB_MENU', 'ctrl+tab'),('NEW_ENV', 'ctrl+n+e'),('NEW_REQUEST', 'ctrl+n+r'),('OPEN_ENV', 'ctrl+e') ON CONFLICT(Command) DO NOTHING;
-		
-		CREATE TABLE IF NOT EXISTS app_state (
-		    key TEXT PRIMARY KEY,
-		    value TEXT NOT NULL
-		)
-`
-
-	var createDbErr error
-	_, createDbErr = db.Exec(createTableSQL)
-	if createDbErr != nil {
-		fmt.Println("Failed to create table:", createDbErr)
-		return
+	files := []string{"sql/collections.sql", "sql/requests.sql", "sql/environments.sql", "sql/responses.sql", "sql/hotkey_binds.sql", "sql/app_state.sql"}
+	for _, file := range files {
+		if err := executeSQLFromFile(db, file); err != nil {
+			log.Fatalf("Failed to execute %s: %v", file, err)
+		}
 	}
 
 	crudService := &RequestCRUDService{db: db}
@@ -192,4 +127,13 @@ func buildFolders() error {
 	}
 
 	return nil
+}
+
+func executeSQLFromFile(db *sql.DB, filePath string) error {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(string(content))
+	return err
 }
