@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
+import { html } from "@codemirror/lang-html";
+import { xml } from "@codemirror/lang-xml";
+import { javascript } from "@codemirror/lang-javascript";
+import { css } from "@codemirror/lang-css";
+import { EditorView } from "@codemirror/view";
 import { ExecuteRequest, GetRequest } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js";
 import { githubDark } from "@uiw/codemirror-theme-github";
 import { Input } from "@/components/ui/input.js";
@@ -13,12 +18,184 @@ import { useHotkeys } from "@/services/HotkeysContext.jsx";
 import hotkeys from "hotkeys-js";
 import { CommandDialog, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
 import { FolderClosed } from "lucide-react";
+import * as prettier from 'prettier/standalone';
+import parserBabel from 'prettier/parser-babel';
+import * as parserHtml from 'prettier/parser-html';
+import parserPostcss from 'prettier/parser-postcss';
+
+//TODO: Move a lot of this into utils
+const formatCode = (code, contentType, bodyFormat) => {
+    if (!code || !code.trim()) return code;
+    try {
+        const type = safeString(contentType).toLowerCase();
+        const format = bodyFormat || '';
+
+        if (type.includes('json') || format === 'JSON') {
+            try {
+                const parsed = JSON.parse(code);
+                return JSON.stringify(parsed, null, 2);
+            } catch (e) {
+                // If JSON parsing fails, try prettier
+                return prettier.format(code, {
+                    parser: 'json',
+                    plugins: [parserBabel],
+                    printWidth: 80,
+                    tabWidth: 2,
+                });
+            }
+        }
+
+        if (type.includes('javascript') || format === 'JavaScript') {
+            return prettier.format(code, {
+                parser: 'babel',
+                plugins: [parserBabel],
+                printWidth: 80,
+                tabWidth: 2,
+                useTabs: false,
+                semi: true,
+                singleQuote: true,
+            });
+        }
+
+        if (type.includes('html') || format === 'HTML') {
+            return prettier.format(code, {
+                parser: 'html',
+                plugins: [parserHtml],
+                printWidth: 80,
+                tabWidth: 2,
+                htmlWhitespaceSensitivity: 'css',
+            });
+        }
+
+        if (type.includes('css') || format === 'CSS') {
+            return prettier.format(code, {
+                parser: 'css',
+                plugins: [parserPostcss],
+                printWidth: 80,
+                tabWidth: 2,
+            });
+        }
+    } catch (error) {
+        console.warn('Failed to format code:', error);
+    }
+    return code;
+};
+
+//TODO: Proper custom font support
+const customFontTheme = EditorView.theme({
+    "&": {
+        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', Monaco, 'Inconsolata', 'Roboto Mono', 'Source Code Pro', Menlo, 'Ubuntu Mono', monospace",
+        fontSize: "14px",
+        lineHeight: "1.4"
+    },
+    ".cm-content": {
+        fontFamily: "inherit"
+    },
+    ".cm-editor": {
+        fontFamily: "inherit"
+    }
+});
+
+//TODO: rename this
+const safeString = (value) => {
+    if (typeof value === 'string') return value;
+    if (value === null || value === undefined) return '';
+    if(Array.isArray(value) && value.length){
+        //TODO: Clearer parsing out of types
+        String(value[0])
+    }
+    return String(value);
+};
+
+//TODO: move to utils
+const getLanguageExtension = (contentType, content) => {
+
+    if (!contentType && !content) return [];
+
+    const type = contentType?.toLowerCase || '';
+
+    if (type.includes('json') || type.includes('application/json')) {
+        return [json()];
+    }
+    if (type.includes('html') || type.includes('text/html')) {
+        return [html()];
+    }
+    if (type.includes('xml') || type.includes('application/xml') || type.includes('text/xml')) {
+        return [xml()];
+    }
+    if (type.includes('javascript') || type.includes('application/javascript') || type.includes('text/javascript')) {
+        return [javascript()];
+    }
+    if (type.includes('css') || type.includes('text/css')) {
+        return [css()];
+    }
+
+    if (content) {
+        const trimmed = content.trim();
+        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+            (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+            try {
+                JSON.parse(trimmed);
+                return [json()];
+            } catch (e) {
+                console.warn(e)
+            }
+        }
+
+        if (trimmed.startsWith('<!DOCTYPE') ||
+            trimmed.startsWith('<html') ||
+            /<[a-z][\s\S]*>/i.test(trimmed)) {
+            return [html()];
+        }
+        if (trimmed.startsWith('<?xml') ||
+            (trimmed.startsWith('<') && !trimmed.includes('<html'))) {
+            return [xml()];
+        }
+    }
+    return [];
+};
+
+const formatContent = (content, contentType) => {
+    if (!content) return "";
+
+    console.log(contentType)
+    const type = contentType[0]?.toLowerCase() || '';
+
+    if (type.includes('json') || type.includes('application/json')) {
+        try {
+            if (typeof content === 'string') {
+                const parsed = JSON.parse(content);
+                return JSON.stringify(parsed, null, 2);
+            } else if (typeof content === 'object') {
+                return JSON.stringify(content, null, 2);
+            }
+        } catch (e) {
+
+        }
+    }
+
+    if (type.includes('html') || type.includes('xml')) {
+        if (typeof content === 'string' && content.length > 0) {
+            return content
+                .replace(/></g, '>\n<')
+                .replace(/^\s+|\s+$/gm, '')
+                .split('\n')
+                .map((line, index) => {
+                    const depth = (line.match(/^<[^\/]/g) ? 1 : 0) - (line.match(/<\//g) || []).length;
+                    return '  '.repeat(Math.max(0, depth)) + line.trim();
+                })
+                .join('\n');
+        }
+    }
+
+    return typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+};
 
 const buildCollectionTree = (collections) => {
     const collectionMap = {};
     const tree = [];
     collections.forEach((col) => {
-        collectionMap[col.id] = { ...col, children: [] };   
+        collectionMap[col.id] = { ...col, children: [] };
     });
     collections.forEach((col) => {
         if (col.parentCollectionId && collectionMap[col.parentCollectionId]) {
@@ -85,6 +262,7 @@ function RequestView({ request }) {
     const [responseData, setResponseData] = useState(null);
     const [responseHeaders, setResponseHeaders] = useState("");
     const [responseBody, setResponseBody] = useState("");
+    const [responseContentType, setResponseContentType] = useState("");
     const [fullRequest, setFullRequest] = useState(null);
     const [responseTab, setResponseTab] = useState("body");
     const [isLoading, setIsLoading] = useState(false);
@@ -171,50 +349,44 @@ function RequestView({ request }) {
                 const response = fullRequest.response;
                 setResponseData(response);
 
+                // Extract content type from response headers
+                let contentType = "";
                 let headersToDisplay = "";
                 if (typeof response.headers === "string") {
                     try {
                         const parsedHeaders = JSON.parse(response.headers);
                         headersToDisplay = JSON.stringify(parsedHeaders, null, 2);
+                        contentType = parsedHeaders["content-type"] || parsedHeaders["Content-Type"] || "";
                     } catch {
                         headersToDisplay = response.headers;
                     }
                 } else if (typeof response.headers === "object") {
                     headersToDisplay = JSON.stringify(response.headers, null, 2);
+                    contentType = response.headers["content-type"] || response.headers["Content-Type"] || "";
                 }
                 setResponseHeaders(headersToDisplay);
+                setResponseContentType(contentType);
 
-
-                let bodyToDisplay = "";
-                if (typeof response.body === "string") {
-                    try {
-                        const parsedBody = JSON.parse(response.body);
-                        bodyToDisplay = JSON.stringify(parsedBody, null, 2);
-                    } catch {
-                        bodyToDisplay = response.body;
-                    }
-                } else if (typeof response.body === "object") {
-                    bodyToDisplay = JSON.stringify(response.body, null, 2);
-                } else {
-                    bodyToDisplay = response.body?.toString() || "";
-                }
-                setResponseBody(bodyToDisplay);
+                const formattedBody = formatContent(response.body, contentType);
+                setResponseBody(formattedBody);
 
             } catch (error) {
                 console.error("Error parsing existing response:", error);
                 setResponseData(null);
                 setResponseHeaders("");
                 setResponseBody("");
+                setResponseContentType("");
             }
         } else {
             setResponseData(null);
             setResponseHeaders("");
             setResponseBody("");
+            setResponseContentType("");
         }
 
         setErrorMessage("");
     }, [fullRequest]);
-    
+
     const flattenCollections = (tree, level = 0) => {
         let result = [];
         for (const col of tree) {
@@ -225,7 +397,7 @@ function RequestView({ request }) {
         }
         return result;
     };
-    
+
 
     //TODO: Improve this, functional but ugly
     const renderCollectionsTab = () => {
@@ -386,9 +558,9 @@ function RequestView({ request }) {
         graphqlVariables,
     ]);
 
-    
+
     const getDefaultContentType = () => {
-        if (bodyType === "graphql") return "application/json"; 
+        if (bodyType === "graphql") return "application/json";
         if (bodyType === "raw") {
             switch (bodyFormat) {
                 case "JSON": return "application/json";
@@ -417,7 +589,7 @@ function RequestView({ request }) {
                 if (h.key && h.value) headersObj[h.key] = h.value;
             });
         }
-        
+
         const hasContentType = Object.keys(headersObj).some(
             k => k.toLowerCase() === "content-type"
         );
@@ -488,23 +660,27 @@ function RequestView({ request }) {
 
     const handleResponse = (result) => {
         setResponseData(result);
-        setResponseHeaders(
-            typeof result.headers === "object"
-                ? JSON.stringify(result.headers, null, 2)
-                : result.headers?.toString() || ""
-        );
-        if (typeof result.body === "string") {
+
+        let contentType = "";
+        if (typeof result.headers === "object") {
+            contentType = result.headers["content-type"] || result.headers["Content-Type"] || "";
+            setResponseHeaders(JSON.stringify(result.headers, null, 2));
+        } else if (typeof result.headers === "string") {
             try {
-                const jsonBody = JSON.parse(result.body);
-                setResponseBody(JSON.stringify(jsonBody, null, 2));
+                const parsedHeaders = JSON.parse(result.headers);
+                contentType = parsedHeaders["content-type"] || parsedHeaders["Content-Type"] || "";
+                setResponseHeaders(JSON.stringify(parsedHeaders, null, 2));
             } catch {
-                setResponseBody(result.body || "");
+                setResponseHeaders(result.headers || "");
             }
-        } else if (typeof result.body === "object") {
-            setResponseBody(JSON.stringify(result.body, null, 2));
         } else {
-            setResponseBody(result.body?.toString() || "");
+            setResponseHeaders(result.headers?.toString() || "");
         }
+
+        setResponseContentType(contentType);
+
+        const formattedBody = formatContent(result.body, contentType);
+        setResponseBody(formattedBody);
     };
 
     const renderKeyValueTable = (dataArray, setDataArray) => {
@@ -609,6 +785,20 @@ function RequestView({ request }) {
         }
     };
 
+    const getRequestBodyExtension = () => {
+        if (bodyType === "graphql") return [javascript()];
+        if (bodyType === "raw") {
+            switch (bodyFormat) {
+                case "JSON": return [json()];
+                case "JavaScript": return [javascript()];
+                case "HTML": return [html()];
+                case "XML": return [xml()];
+                case "Text":
+                default: return [];
+            }
+        }
+        return [];
+    };
 
     useEffect(() => {
         prefillContentTypeHeader(bodyType, bodyFormat);
@@ -736,7 +926,7 @@ function RequestView({ request }) {
                         <CodeMirror
                             value={headersRaw}
                             height={headersExpanded ? "150px" : "75px"}
-                            extensions={[json()]}
+                            extensions={[json(), customFontTheme]}
                             theme={githubDark}
                             className="border border-gray-700 rounded w-full"
                             onChange={value => setHeadersRaw(value)}
@@ -786,7 +976,7 @@ function RequestView({ request }) {
                                 <CodeMirror
                                     value={bodyRaw}
                                     height="350px"
-                                    extensions={[json()]}
+                                    extensions={[...getRequestBodyExtension(), customFontTheme]}
                                     theme={githubDark}
                                     className="border border-gray-700 rounded w-full"
                                     onChange={setBodyRaw}
@@ -807,7 +997,7 @@ function RequestView({ request }) {
                                     <CodeMirror
                                         value={graphqlQuery}
                                         height="180px"
-                                        extensions={[]}
+                                        extensions={[javascript(), customFontTheme]}
                                         theme={githubDark}
                                         className="border border-gray-700 rounded w-full"
                                         onChange={value => setGraphqlQuery(value)}
@@ -825,7 +1015,7 @@ function RequestView({ request }) {
                                     <CodeMirror
                                         value={graphqlVariables}
                                         height="180px"
-                                        extensions={[json()]}
+                                        extensions={[json(), customFontTheme]}
                                         theme={githubDark}
                                         className="border border-gray-700 rounded w-full"
                                         onChange={value => setGraphqlVariables(value)}
@@ -843,46 +1033,68 @@ function RequestView({ request }) {
             )}
             {responseData && (
                 <div className="flex flex-col mt-4 rounded-lg shadow-md w-full flex-1 overflow-hidden">
-                    <div className="flex-none border-b border-gray-700 flex">
-                        <button
-                            onClick={() => setResponseTab("body")}
-                            className={`px-4 py-2 -mb-px ${
-                                responseTab === "body" ? "border-b-2 border-blue-500" : "text-gray-400"
-                            }`}
-                        >
-                            Body
-                        </button>
-                        <button
-                            onClick={() => setResponseTab("headers")}
-                            className={`px-4 py-2 -mb-px ${
-                                responseTab === "headers" ? "border-b-2 border-blue-500" : "text-gray-400"
-                            }`}
-                        >
-                            Headers
-                        </button>
+                    <div className="flex-none border-b border-gray-700 flex items-center justify-between">
+                        <div className="flex">
+                            <button
+                                onClick={() => setResponseTab("body")}
+                                className={`px-4 py-2 -mb-px ${
+                                    responseTab === "body" ? "border-b-2 border-blue-500" : "text-gray-400"
+                                }`}
+                            >
+                                Body
+                            </button>
+                            <button
+                                onClick={() => setResponseTab("headers")}
+                                className={`px-4 py-2 -mb-px ${
+                                    responseTab === "headers" ? "border-b-2 border-blue-500" : "text-gray-400"
+                                }`}
+                            >
+                                Headers
+                            </button>
+                        </div>
+                        {responseContentType && (
+                            <div className="text-xs text-gray-400 px-4 py-2">
+                                {responseContentType[0]?.split(';')[0]} {/* Show just the main content type */}
+                            </div>
+                        )}
                     </div>
                     {responseTab === "body" ? (
-                        <div className="flex-1 p-3 overflow-auto">
-                            <CodeMirror
-                                value={responseBody}
-                                height="100%"
-                                extensions={[json()]}
-                                theme={githubDark}
-                                className="h-full w-full"
-                                readOnly
-                                basicSetup={{
-                                    lineNumbers: true,
-                                    foldGutter: true,
-                                    scrollPastEnd: false,
-                                }}
-                            />
+                        <div className="flex-1 flex flex-col overflow-hidden">
+                            <div className="flex-none flex justify-end p-2">
+                                <button
+                                    onClick={async () => {
+                                        const formatted = await formatCode(responseBody, responseContentType);
+                                        if (formatted !== responseBody) {
+                                            setResponseBody(formatted);
+                                        }
+                                    }}
+                                    className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm transition"
+                                >
+                                    Format Response
+                                </button>
+                            </div>
+                            <div className="flex-1 p-3 overflow-auto">
+                                <CodeMirror
+                                    value={responseBody}
+                                    height="100%"
+                                    extensions={[...getLanguageExtension(responseContentType, responseBody), customFontTheme]}
+                                    theme={githubDark}
+                                    className="h-full w-full"
+                                    readOnly
+                                    basicSetup={{
+                                        lineNumbers: true,
+                                        foldGutter: true,
+                                        scrollPastEnd: false,
+                                    }}
+                                />
+                            </div>
                         </div>
                     ) : (
                         <div className="flex-1 p-3 overflow-auto">
                             <CodeMirror
                                 value={responseHeaders}
                                 height="100%"
-                                extensions={[json()]}
+                                extensions={[json(), customFontTheme]}
                                 theme={githubDark}
                                 className="h-full w-full"
                                 readOnly
