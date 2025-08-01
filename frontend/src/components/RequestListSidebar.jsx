@@ -5,6 +5,7 @@ import {
     CreateCollection,
     SetRequestCollection,
     UpdateCollectionParent,
+    SetRequestSortOrder
 } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js";
 import { Button } from "@/components/ui/button";
 import {
@@ -89,16 +90,23 @@ const getMethodColor = (method) => {
     return colors[method?.toUpperCase()] || "text-gray-400";
 };
 
-const DraggableRequest = ({ req, onDelete, onRequestSelect, activeDragId }) => {
+const DraggableRequest = ({ req, onDelete, onRequestSelect, activeDragId, index }) => {
     const {
         attributes,
         listeners,
         setNodeRef,
         transform,
+        isDragging,
         setActivatorNodeRef,
     } = useDraggable({
-        id: req.id,
-        data: { type: "request", name: req.name || `${req.method} ${req.url}` },
+        id: `request-${req.id}`,
+        data: {
+            type: "request",
+            name: req.name || `${req.method} ${req.url}`,
+            requestId: req.id,
+            collectionId: req.collectionId,
+            currentIndex: index
+        },
     });
 
     const style = transform
@@ -110,7 +118,7 @@ const DraggableRequest = ({ req, onDelete, onRequestSelect, activeDragId }) => {
             ref={setNodeRef}
             style={style}
             className={`group flex items-center h-6 text-sm hover:bg-slate-700/50 transition-colors ${
-                activeDragId === req.id ? "opacity-50" : ""
+                isDragging ? "opacity-50" : ""
             }`}
             onPointerDown={(e) => e.stopPropagation()}
         >
@@ -156,6 +164,26 @@ const DraggableRequest = ({ req, onDelete, onRequestSelect, activeDragId }) => {
     );
 };
 
+const RequestDropZone = ({ collectionId, index, isLast = false }) => {
+    const { isOver, setNodeRef } = useDroppable({
+        id: `drop-zone-${collectionId}-${index}`,
+        data: {
+            type: "request-drop-zone",
+            collectionId,
+            targetIndex: index
+        }
+    });
+
+    return (
+        <div
+            ref={setNodeRef}
+            className={`h-1 transition-all duration-200 ${
+                isOver ? "h-2 bg-blue-500/50 rounded" : ""
+            }`}
+        />
+    );
+};
+
 const CollectionItem = ({
                             collection,
                             allRequests,
@@ -167,6 +195,7 @@ const CollectionItem = ({
                         }) => {
     const { isOver, setNodeRef: droppableRef } = useDroppable({
         id: collection.id,
+        data: { type: "collection" }
     });
     const {
         attributes,
@@ -175,8 +204,8 @@ const CollectionItem = ({
         transform,
         setActivatorNodeRef,
     } = useDraggable({
-        id: collection.id,
-        data: { type: "collection", name: collection.name },
+        id: `collection-${collection.id}`,
+        data: { type: "collection", name: collection.name, collectionId: collection.id },
     });
 
     const [isOpen, setIsOpen] = useState(true);
@@ -185,9 +214,15 @@ const CollectionItem = ({
         paddingLeft: `${level * 16}px`,
     };
 
-    const requestsInThisCollection = allRequests.filter(
-        (r) => r.collectionId === collection.id,
-    );
+    const requestsInThisCollection = allRequests
+        .filter((r) => r.collectionId === collection.id)
+        .sort((a, b) => {
+            const aOrder = a.sortOrder ?? a.id;
+            const bOrder = b.sortOrder ?? b.id;
+            return aOrder - bOrder;
+        });
+
+    console.log(requestsInThisCollection)
 
     const hasChildren = collection.children?.length > 0 || requestsInThisCollection.length > 0;
 
@@ -196,7 +231,7 @@ const CollectionItem = ({
             ref={draggableRef}
             style={style}
             className={`transition-opacity ${
-                activeDragId === collection.id ? "opacity-50" : ""
+                activeDragId === `collection-${collection.id}` ? "opacity-50" : ""
             }`}
         >
             <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -266,25 +301,44 @@ const CollectionItem = ({
                                 activeDragId={activeDragId}
                             />
                         ))}
-                        {requestsInThisCollection.map((req) => (
-                            <DraggableRequest
-                                key={req.id}
-                                req={req}
-                                onDelete={onDeleteRequest}
-                                onRequestSelect={onRequestSelect}
-                                activeDragId={activeDragId}
-                            />
-                        ))}
+
+                        {/* Render requests with drop zones */}
+                        {requestsInThisCollection.length > 0 && (
+                            <>
+                                <RequestDropZone collectionId={collection.id} index={0} />
+                                {requestsInThisCollection.map((req, index) => (
+                                    <React.Fragment key={req.id}>
+                                        <DraggableRequest
+                                            req={req}
+                                            index={index}
+                                            onDelete={onDeleteRequest}
+                                            onRequestSelect={onRequestSelect}
+                                            activeDragId={activeDragId}
+                                        />
+                                        <RequestDropZone
+                                            collectionId={collection.id}
+                                            index={index + 1}
+                                            isLast={index === requestsInThisCollection.length - 1}
+                                        />
+                                    </React.Fragment>
+                                ))}
+                            </>
+                        )}
                     </div>
                 </CollapsibleContent>
             </Collapsible>
         </div>
     );
 };
-
 const UncategorizedDroppable = ({ requests, ...props }) => {
     const { isOver, setNodeRef } = useDroppable({ id: "__UNCATEGORIZED__" });
     const [isOpen, setIsOpen] = useState(true);
+
+    const sortedRequests = requests.sort((a, b) => {
+        const aOrder = a.sortOrder ?? a.id;
+        const bOrder = b.sortOrder ?? b.id;
+        return aOrder - bOrder;
+    });
 
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -312,15 +366,30 @@ const UncategorizedDroppable = ({ requests, ...props }) => {
                 }`}
             >
                 <div style={{ paddingLeft: "16px" }}>
-                    {requests.map((r) => (
-                        <DraggableRequest key={r.id} req={r} {...props} />
-                    ))}
+                    {sortedRequests.length > 0 && (
+                        <>
+                            <RequestDropZone collectionId={null} index={0} />
+                            {sortedRequests.map((req, index) => (
+                                <React.Fragment key={req.id}>
+                                    <DraggableRequest
+                                        req={req}
+                                        index={index}
+                                        {...props}
+                                    />
+                                    <RequestDropZone
+                                        collectionId={null}
+                                        index={index + 1}
+                                        isLast={index === sortedRequests.length - 1}
+                                    />
+                                </React.Fragment>
+                            ))}
+                        </>
+                    )}
                 </div>
             </CollapsibleContent>
         </Collapsible>
     );
 };
-
 const Toolbar = ({ onNewCollection, onRefresh }) => (
     <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-700">
         <div className="flex items-center space-x-1">
@@ -439,27 +508,51 @@ export default function RequestListSidebar({
         setActiveDragItem(active.data.current);
     };
 
-    const handleDragEnd = ({ active, over }) => {
+    const handleDragEnd = async ({ active, over }) => {
         setActiveDragId(null);
         setActiveDragItem(null);
         if (!over || active.id === over.id) return;
 
         const draggedItemType = active.data.current?.type;
-        const targetId = over.id;
+        const targetData = over.data.current;
 
         if (draggedItemType === "request") {
-            const newColId = targetId === "__UNCATEGORIZED__" ? null : targetId;
-            SetRequestCollection(active.id, newColId)
-                .then(loadAll)
-                .catch(console.error);
+            const requestId = active.data.current.requestId;
+            const currentCollectionId = active.data.current.collectionId;
+
+            if (targetData?.type === "collection" && over.id !== currentCollectionId) {
+                const newColId = over.id === "__UNCATEGORIZED__" ? null : over.id;
+                try {
+                    await SetRequestCollection(requestId, newColId);
+                    await loadAll();
+                } catch (error) {
+                    console.error("Failed to move request to collection:", error);
+                }
+            }
+            else if (targetData?.type === "request-drop-zone") {
+                const targetCollectionId = targetData.collectionId;
+                const targetIndex = targetData.targetIndex;
+
+                if (currentCollectionId === targetCollectionId) {
+                    try {
+                        await SetRequestSortOrder(requestId, targetIndex);
+                        await loadAll();
+                    } catch (error) {
+                        console.error("Failed to reorder request:", error);
+                    }
+                }
+            }
         } else if (draggedItemType === "collection") {
-            const newParentId = targetId === "__UNCATEGORIZED__" ? null : targetId;
-            UpdateCollectionParent(active.id, newParentId)
-                .then(loadAll)
-                .catch(console.error);
+            const collectionId = active.data.current.collectionId;
+            const newParentId = over.id === "__UNCATEGORIZED__" ? null : over.id;
+            try {
+                await UpdateCollectionParent(collectionId, newParentId);
+                await loadAll();
+            } catch (error) {
+                console.error("Failed to move collection:", error);
+            }
         }
     };
-
     const handleCreateCollection = () => {
         if (!newCollectionName.trim()) return;
         CreateCollection(newCollectionName.trim(), "", null)

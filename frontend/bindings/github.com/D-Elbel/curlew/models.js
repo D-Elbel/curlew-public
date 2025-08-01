@@ -145,6 +145,13 @@ export class Request {
              */
             this["auth"] = "";
         }
+        if (!("sortOrder" in $$source)) {
+            /**
+             * @member
+             * @type {number | null}
+             */
+            this["sortOrder"] = null;
+        }
         if (/** @type {any} */(false)) {
             /**
              * @member
@@ -162,10 +169,10 @@ export class Request {
      * @returns {Request}
      */
     static createFrom($$source = {}) {
-        const $$createField12_0 = $$createType1;
+        const $$createField13_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("response" in $$parsedSource) {
-            $$parsedSource["response"] = $$createField12_0($$parsedSource["response"]);
+            $$parsedSource["response"] = $$createField13_0($$parsedSource["response"]);
         }
         return new Request(/** @type {Partial<Request>} */($$parsedSource));
     }

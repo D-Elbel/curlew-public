@@ -31,6 +31,7 @@ type Request struct {
 	BodyType       string    `json:"bodyType"`
 	BodyFormat     string    `json:"bodyFormat"`
 	Auth           string    `json:"auth"`
+	SortOrder      *int      `json:"sortOrder"`
 	Response       *Response `json:"response,omitempty"`
 }
 
@@ -47,6 +48,7 @@ type DbRequest struct {
 	BodyType       sql.NullString
 	BodyFormat     sql.NullString
 	Auth           sql.NullString
+	SortOrder      sql.NullInt64
 }
 
 type Collection struct {
@@ -115,15 +117,17 @@ func (s *RequestCRUDService) DeleteRequest(id int) error {
 // TODO: lock down response object, replace "" with nulls etc
 func (s *RequestCRUDService) GetAllRequestsList() []Request {
 	var requests []Request
-	rows, err := s.db.Query("SELECT id, collection_id, name, description, method, url FROM requests")
+	rows, err := s.db.Query("SELECT id, collection_id, name, description, method, url, sort_order FROM requests ORDER BY collection_id, COALESCE(sort_order, id)")
 
 	if err != nil {
 		fmt.Print("No requests found")
 		return []Request{}
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		var dbR DbRequest
-		err := rows.Scan(&dbR.ID, &dbR.CollectionID, &dbR.Name, &dbR.Description, &dbR.Method, &dbR.URL)
+		err := rows.Scan(&dbR.ID, &dbR.CollectionID, &dbR.Name, &dbR.Description, &dbR.Method, &dbR.URL, &dbR.SortOrder)
 		if err != nil {
 			fmt.Println("Failed to scan request:", err)
 			continue
@@ -135,6 +139,7 @@ func (s *RequestCRUDService) GetAllRequestsList() []Request {
 			Description:  dbR.Description.String,
 			Method:       dbR.Method.String,
 			URL:          dbR.URL.String,
+			SortOrder:    nullIntToPointer(dbR.SortOrder),
 		}
 		requests = append(requests, r)
 	}
@@ -300,7 +305,19 @@ func (s *RequestCRUDService) SaveRequest(collectionId *string, name string, desc
 		Auth:         auth,
 	}
 
-	err := s.db.QueryRow("INSERT INTO requests (collection_id, name, description, method, url, headers, body, body_type, body_format, auth) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING ID",
+	// Get the next sort order for this collection
+	var maxSortOrder sql.NullInt64
+	err := s.db.QueryRow("SELECT MAX(sort_order) FROM requests WHERE collection_id = ?", collectionId).Scan(&maxSortOrder)
+	if err != nil {
+		fmt.Println("Failed to get max sort order:", err)
+	}
+
+	nextSortOrder := 0
+	if maxSortOrder.Valid {
+		nextSortOrder = int(maxSortOrder.Int64) + 1
+	}
+
+	err = s.db.QueryRow("INSERT INTO requests (collection_id, name, description, method, url, headers, body, body_type, body_format, auth, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING ID",
 		newRequest.CollectionID,
 		emptyStringToNullString(newRequest.Name),
 		emptyStringToNullString(newRequest.Description),
@@ -310,7 +327,8 @@ func (s *RequestCRUDService) SaveRequest(collectionId *string, name string, desc
 		emptyStringToNullString(newRequest.Body),
 		emptyStringToNullString(newRequest.BodyType),
 		emptyStringToNullString(newRequest.BodyFormat),
-		emptyStringToNullString(newRequest.Auth)).Scan(&newRequest.ID)
+		emptyStringToNullString(newRequest.Auth),
+		nextSortOrder).Scan(&newRequest.ID)
 	if err != nil {
 		fmt.Println("Failed to insert request:", err)
 		return Request{}
@@ -375,6 +393,92 @@ func (s *RequestCRUDService) UpdateRequest(id int, collectionId *string, name st
 
 // TODO: Implement this
 func (s *RequestCRUDService) SetRequestSortOrder(id int, sortOrder int) error {
+	var collectionId sql.NullString
+	err := s.db.QueryRow("SELECT collection_id FROM requests WHERE id = ?", id).Scan(&collectionId)
+	if err != nil {
+		fmt.Println("Failed to get request collection:", err)
+		return err
+	}
+
+	rows, err := s.db.Query("SELECT id FROM requests WHERE collection_id = ? AND sort_order IS NULL ORDER BY id", collectionId)
+	if err != nil {
+		fmt.Println("Failed to get requests with null sort orders:", err)
+		return err
+	}
+	defer rows.Close()
+
+	var requestsToUpdate []int
+	for rows.Next() {
+		var requestId int
+		if err := rows.Scan(&requestId); err != nil {
+			continue
+		}
+		requestsToUpdate = append(requestsToUpdate, requestId)
+	}
+
+	var maxSortOrder sql.NullInt64
+	err = s.db.QueryRow("SELECT MAX(sort_order) FROM requests WHERE collection_id = ? AND sort_order IS NOT NULL", collectionId).Scan(&maxSortOrder)
+	if err != nil {
+		fmt.Println("Failed to get max sort order:", err)
+		return err
+	}
+
+	startOrder := 0
+	if maxSortOrder.Valid {
+		startOrder = int(maxSortOrder.Int64) + 1
+	}
+
+	for i, requestId := range requestsToUpdate {
+		_, err = s.db.Exec("UPDATE requests SET sort_order = ? WHERE id = ?", startOrder+i, requestId)
+		if err != nil {
+			fmt.Println("Failed to initialize sort order for request:", requestId, err)
+			return err
+		}
+	}
+
+	var currentSortOrder sql.NullInt64
+	err = s.db.QueryRow("SELECT sort_order FROM requests WHERE id = ?", id).Scan(&currentSortOrder)
+	if err != nil {
+		fmt.Println("Failed to get current sort order:", err)
+		return err
+	}
+
+	if !currentSortOrder.Valid {
+		fmt.Println("Request sort order is still null after initialization")
+		return fmt.Errorf("request sort order is null")
+	}
+
+	currentOrder := int(currentSortOrder.Int64)
+
+	if currentOrder == sortOrder {
+		return nil
+	}
+
+	if currentOrder < sortOrder {
+		_, err = s.db.Exec(`
+			UPDATE requests 
+			SET sort_order = sort_order - 1 
+			WHERE collection_id = ? AND sort_order > ? AND sort_order <= ? AND id != ?
+		`, collectionId, currentOrder, sortOrder, id)
+	} else {
+		_, err = s.db.Exec(`
+			UPDATE requests 
+			SET sort_order = sort_order + 1 
+			WHERE collection_id = ? AND sort_order >= ? AND sort_order < ? AND id != ?
+		`, collectionId, sortOrder, currentOrder, id)
+	}
+
+	if err != nil {
+		fmt.Println("Failed to shift sort orders:", err)
+		return err
+	}
+
+	_, err = s.db.Exec("UPDATE requests SET sort_order = ? WHERE id = ?", sortOrder, id)
+	if err != nil {
+		fmt.Println("Failed to update request sort order:", err)
+		return err
+	}
+
 	return nil
 }
 
@@ -518,6 +622,14 @@ func nullStringToEmptyString(s sql.NullString) string {
 func nullStringToPointer(ns sql.NullString) *string {
 	if ns.Valid {
 		return &ns.String
+	}
+	return nil
+}
+
+func nullIntToPointer(ni sql.NullInt64) *int {
+	if ni.Valid {
+		val := int(ni.Int64)
+		return &val
 	}
 	return nil
 }
