@@ -348,6 +348,7 @@ function RequestView({ request }) {
             try {
                 const response = fullRequest.response;
                 setResponseData(response);
+                console.log("response", response)
 
                 // Extract content type from response headers
                 let contentType = "";
@@ -660,6 +661,7 @@ function RequestView({ request }) {
 
     const handleResponse = (result) => {
         setResponseData(result);
+        console.log("result", result)
 
         let contentType = "";
         if (typeof result.headers === "object") {
@@ -1034,45 +1036,65 @@ function RequestView({ request }) {
             {responseData && (
                 <div className="flex flex-col mt-4 rounded-lg shadow-md w-full flex-1 overflow-hidden">
                     <div className="flex-none border-b border-gray-700 flex items-center justify-between">
-                        <div className="flex">
-                            <button
-                                onClick={() => setResponseTab("body")}
-                                className={`px-4 py-2 -mb-px ${
-                                    responseTab === "body" ? "border-b-2 border-blue-500" : "text-gray-400"
-                                }`}
-                            >
-                                Body
-                            </button>
-                            <button
-                                onClick={() => setResponseTab("headers")}
-                                className={`px-4 py-2 -mb-px ${
-                                    responseTab === "headers" ? "border-b-2 border-blue-500" : "text-gray-400"
-                                }`}
-                            >
-                                Headers
-                            </button>
-                        </div>
-                        {responseContentType && (
-                            <div className="text-xs text-gray-400 px-4 py-2">
-                                {responseContentType[0]?.split(';')[0]} {/* Show just the main content type */}
+                        <div className="flex flex-row space-x-4 items-center justify-between w-full">
+                            <div className="flex">
+                                <button
+                                    onClick={() => setResponseTab("body")}
+                                    className={`px-4 py-2 -mb-px ${
+                                        responseTab === "body" ? "border-b-2 border-blue-500" : "text-gray-400"
+                                    }`}
+                                >
+                                    Body
+                                </button>
+                                <button
+                                    onClick={() => setResponseTab("headers")}
+                                    className={`px-4 py-2 -mb-px ${
+                                        responseTab === "headers" ? "border-b-2 border-blue-500" : "text-gray-400"
+                                    }`}
+                                >
+                                    Headers
+                                </button>
                             </div>
-                        )}
+                            <div className="flex items-center space-x-4 text-sm">
+                                <span
+                                    className={`px-2 py-1 rounded ${responseData.statusCode >= 400 ? 'bg-red-500/20' : 'bg-green-500/20'}`}>
+                                    <strong>Status:</strong> {responseData.statusCode}
+                                </span>
+                                <span className="text-gray-400">
+                                    <strong>Time:</strong> {responseData.runtimeMS}ms
+                                </span>
+                                <span className="text-gray-400">
+                                    <strong>Size:</strong> {(new Blob([responseBody]).size / 1024).toFixed(2)} KB
+                                </span>
+
+                            </div>
+
+                        </div>
+
                     </div>
                     {responseTab === "body" ? (
                         <div className="flex-1 flex flex-col overflow-hidden">
-                            <div className="flex-none flex justify-end p-2">
-                                <button
-                                    onClick={async () => {
-                                        const formatted = await formatCode(responseBody, responseContentType);
-                                        if (formatted !== responseBody) {
-                                            setResponseBody(formatted);
-                                        }
-                                    }}
-                                    className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm transition"
-                                >
-                                    Format Response
-                                </button>
+                            <div className="flex-none border-b border-gray-700 flex items-center justify-between">
+                                {responseContentType && (
+                                    <div className="text-xs text-gray-400 px-4 py-2">
+                                    {responseContentType[0]?.split(';')[0]}
+                                </div>
+                                )}
+                                <div className="flex-none flex justify-end p-2">
+                                    <button
+                                        onClick={async () => {
+                                            const formatted = await formatCode(responseBody, responseContentType);
+                                            if (formatted !== responseBody) {
+                                                setResponseBody(formatted);
+                                            }
+                                        }}
+                                        className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm transition"
+                                    >
+                                        Format Response
+                                    </button>
+                                </div>
                             </div>
+
                             <div className="flex-1 p-3 overflow-auto">
                                 <CodeMirror
                                     value={responseBody}
