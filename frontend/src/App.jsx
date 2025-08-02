@@ -26,6 +26,7 @@ import hotkeys from "hotkeys-js";
 import { AcknowledgeShutdown, LoadState, SaveState } from '../bindings/github.com/D-Elbel/curlew/appstateservice.js';
 import {Events} from "@wailsio/runtime";
 import TopToolbar from "@/components/TopToolbar.jsx";
+import ErrorBoundary from "./components/ErrorBoundary.jsx"
 
 function App() {
     const { hotkeysMap } = useHotkeys();
@@ -250,7 +251,10 @@ function App() {
                                     <React.Fragment key={view.id}>
                                         <ResizablePanel className="flex-1 min-w-0 overflow-auto">
                                             {view.type === 'request' ? (
-                                                <RequestView request={view}/>
+                                                <ErrorBoundary>
+                                                    <RequestView  request={view}/>
+                                                </ErrorBoundary>
+
                                             ) : (
                                                 <EnvFileView
                                                     filename={view.filename}

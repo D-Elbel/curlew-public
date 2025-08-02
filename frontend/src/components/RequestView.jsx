@@ -29,7 +29,7 @@ const formatCode = (code, contentType, bodyFormat) => {
     try {
         const type = safeString(contentType).toLowerCase();
         const format = bodyFormat || '';
-
+        console.log("formatcode type", type, format)
         if (type.includes('json') || format === 'JSON') {
             try {
                 const parsed = JSON.parse(code);
@@ -297,95 +297,103 @@ function RequestView({ request }) {
     }, [request?.id, request.isNew]);
 
     useEffect(() => {
-        if (!fullRequest) return;
-        if (isSyncingFromSave.current) {
-            isSyncingFromSave.current = false;
-            return;
-        }
-        setMethod(fullRequest.method || "GET");
-        setUrl(fullRequest.url || "");
-        setAuth(fullRequest.auth || "");
-        setName(fullRequest.name || "Untitled Request");
-        setDescription(fullRequest.description || "");
-        setBodyFormat(fullRequest.bodyFormat || "JSON");
-        setCollectionName(fullRequest.collectionName || "");
-
-        try {
-            const parsed = JSON.parse(fullRequest.headers);
-            if (Array.isArray(parsed) && parsed.every(h => "key" in h && "value" in h)) {
-                setHeaderType("keyvalue");
-                setHeadersKV(parsed.length ? parsed : [{ key: "", value: "" }]);
-            } else {
-                setHeaderType("raw");
-                setHeadersRaw(fullRequest.headers);
+        const syncFullRequest = async () => {
+            if (!fullRequest) return;
+            if (isSyncingFromSave.current) {
+                isSyncingFromSave.current = false;
+                return;
             }
-        } catch {
-            setHeaderType("keyvalue");
-            setHeadersKV([{ key: "", value: "" }]);
-        }
 
-        const bt = fullRequest.bodyType || "none";
-        setBodyType(bt);
-        switch (bt) {
-            case "raw":
-                setBodyRaw(fullRequest.body || "");
-                break;
-            case "graphql":
-                try {
-                    const { query, variables } = JSON.parse(fullRequest.body);
-                    setGraphqlQuery(query || "");
-                    setGraphqlVariables(JSON.stringify(variables || {}, null, 2));
-                } catch {
-                    setGraphqlQuery("");
-                    setGraphqlVariables("{}");
-                }
-                break;
-            default:
-                setBodyRaw("");
-        }
+            setMethod(fullRequest.method || "GET");
+            setUrl(fullRequest.url || "");
+            setAuth(fullRequest.auth || "");
+            setName(fullRequest.name || "Untitled Request");
+            setDescription(fullRequest.description || "");
+            setBodyFormat(fullRequest.bodyFormat || "JSON");
+            setCollectionName(fullRequest.collectionName || "");
 
-        if (fullRequest.response) {
             try {
-                const response = fullRequest.response;
-                setResponseData(response);
-                console.log("response", response)
-
-                // Extract content type from response headers
-                let contentType = "";
-                let headersToDisplay = "";
-                if (typeof response.headers === "string") {
-                    try {
-                        const parsedHeaders = JSON.parse(response.headers);
-                        headersToDisplay = JSON.stringify(parsedHeaders, null, 2);
-                        contentType = parsedHeaders["content-type"] || parsedHeaders["Content-Type"] || "";
-                    } catch {
-                        headersToDisplay = response.headers;
-                    }
-                } else if (typeof response.headers === "object") {
-                    headersToDisplay = JSON.stringify(response.headers, null, 2);
-                    contentType = response.headers["content-type"] || response.headers["Content-Type"] || "";
+                const parsed = JSON.parse(fullRequest.headers);
+                if (Array.isArray(parsed) && parsed.every(h => "key" in h && "value" in h)) {
+                    setHeaderType("keyvalue");
+                    setHeadersKV(parsed.length ? parsed : [{key: "", value: ""}]);
+                } else {
+                    setHeaderType("raw");
+                    setHeadersRaw(fullRequest.headers);
                 }
-                setResponseHeaders(headersToDisplay);
-                setResponseContentType(contentType);
+            } catch {
+                setHeaderType("keyvalue");
+                setHeadersKV([{key: "", value: ""}]);
+            }
 
-                const formattedBody = formatContent(response.body, contentType);
-                setResponseBody(formattedBody);
+            const bt = fullRequest.bodyType || "none";
+            setBodyType(bt);
+            switch (bt) {
+                case "raw":
+                    setBodyRaw(fullRequest.body || "");
+                    break;
+                case "graphql":
+                    try {
+                        const {query, variables} = JSON.parse(fullRequest.body);
+                        setGraphqlQuery(query || "");
+                        setGraphqlVariables(JSON.stringify(variables || {}, null, 2));
+                    } catch {
+                        setGraphqlQuery("");
+                        setGraphqlVariables("{}");
+                    }
+                    break;
+                default:
+                    setBodyRaw("");
+            }
 
-            } catch (error) {
-                console.error("Error parsing existing response:", error);
+            if (fullRequest.response) {
+                try {
+                    const response = fullRequest.response;
+                    setResponseData(response);
+
+                    let contentType = "";
+                    let headersToDisplay = "";
+                    if (typeof response.headers === "string") {
+                        try {
+                            const parsedHeaders = JSON.parse(response.headers);
+                            headersToDisplay = JSON.stringify(parsedHeaders, null, 2);
+                            contentType = parsedHeaders["content-type"] || parsedHeaders["Content-Type"] || "";
+                        } catch {
+                            headersToDisplay = response.headers;
+                        }
+                    } else if (typeof response.headers === "object") {
+                        headersToDisplay = JSON.stringify(response.headers, null, 2);
+                        contentType = response.headers["content-type"] || response.headers["Content-Type"] || "";
+                    }
+                    setResponseHeaders(headersToDisplay);
+                    setResponseContentType(contentType);
+
+                    const formattedBody = formatContent(response.body, contentType);
+                    const formatted = await formatCode(response.body, contentType, responseContentType);
+                    if (formatted !== responseBody) {
+                        setResponseBody(formatted);
+                    } else {
+                        setResponseBody(formattedBody);
+                    }
+
+                } catch (error) {
+                    console.error("Error parsing existing response:", error);
+                    setResponseData(null);
+                    setResponseHeaders("");
+                    setResponseBody("");
+                    setResponseContentType("");
+                }
+            } else {
                 setResponseData(null);
                 setResponseHeaders("");
                 setResponseBody("");
                 setResponseContentType("");
             }
-        } else {
-            setResponseData(null);
-            setResponseHeaders("");
-            setResponseBody("");
-            setResponseContentType("");
-        }
 
-        setErrorMessage("");
+            setErrorMessage("");
+        };
+
+        syncFullRequest();
     }, [fullRequest]);
 
     const flattenCollections = (tree, level = 0) => {
@@ -649,7 +657,7 @@ function RequestView({ request }) {
                 bodyFormat,
                 auth
             );
-            handleResponse(result);
+            await handleResponse(result);
         } catch (error) {
             console.error("Error executing request:", error);
             setErrorMessage(error.toString());
@@ -659,7 +667,7 @@ function RequestView({ request }) {
         }
     };
 
-    const handleResponse = (result) => {
+    const handleResponse = async (result) => {
         setResponseData(result);
         console.log("result", result)
 
@@ -681,8 +689,15 @@ function RequestView({ request }) {
 
         setResponseContentType(contentType);
 
-        const formattedBody = formatContent(result.body, contentType);
-        setResponseBody(formattedBody);
+        //TODO: Cleanup these comments and fix remaining autoformat bugs
+        //const formattedBody = formatContent(result.body, contentType);
+        const formatted = await formatCode(result.body, contentType, responseContentType);
+        console.log("formatted is" , formatted)
+        if (formatted !== responseBody) {
+            console.log("formatted is" , formatted)
+            setResponseBody(formatted);
+        }
+        //setResponseBody(formattedBody);
     };
 
     const renderKeyValueTable = (dataArray, setDataArray) => {
@@ -938,7 +953,7 @@ function RequestView({ request }) {
                 </div>
             )}
             {activeTab === "body" && (
-                <div className="flex-none mb-4 p-3 rounded-lg shadow-md">
+                <div className="flex-none p-3 rounded-lg shadow-md">
                     <h3 className="font-semibold mb-2">Body</h3>
                     <div className="flex flex-wrap gap-4 mb-4">
                         {[
@@ -1012,7 +1027,7 @@ function RequestView({ request }) {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-sm text-gray-300 mb-2">Variables (JSON)</p>
+                                <p className="text-sm text-gray-300">Variables (JSON)</p>
                                 <div className="max-h-48 overflow-auto">
                                     <CodeMirror
                                         value={graphqlVariables}
@@ -1034,7 +1049,7 @@ function RequestView({ request }) {
                 </div>
             )}
             {responseData && (
-                <div className="flex flex-col mt-4 rounded-lg shadow-md w-full flex-1 overflow-hidden">
+                <div className="flex flex-col rounded-lg shadow-md w-full flex-1 overflow-hidden">
                     <div className="flex-none border-b border-gray-700 flex items-center justify-between">
                         <div className="flex flex-row space-x-4 items-center justify-between w-full">
                             <div className="flex">
