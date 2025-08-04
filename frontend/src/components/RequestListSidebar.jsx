@@ -1,19 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
-    GetAllRequestsList,
-    GetAllCollections,
     CreateCollection,
     SetRequestCollection,
     UpdateCollectionParent,
     SetRequestSortOrder
 } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js";
+import { ImportPostmanCollection } from "../../bindings/github.com/D-Elbel/curlew/fileservice.js";
 import { Button } from "@/components/ui/button";
 import {
     Collapsible,
     CollapsibleContent,
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Separator } from "@/components/ui/separator";
 import {
     Dialog,
     DialogTrigger,
@@ -23,6 +21,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useEnvarStore } from "@/stores/envarStore";
 import {
     DndContext,
@@ -48,6 +47,8 @@ import {
     Settings,
     Globe,
     Variable,
+    Upload,
+    FileText,
 } from "lucide-react";
 import hotkeys from "hotkeys-js";
 import { useHotkeys } from "@/services/HotkeysContext.jsx";
@@ -222,8 +223,6 @@ const CollectionItem = ({
             return aOrder - bOrder;
         });
 
-    console.log(requestsInThisCollection)
-
     const hasChildren = collection.children?.length > 0 || requestsInThisCollection.length > 0;
 
     return (
@@ -330,6 +329,7 @@ const CollectionItem = ({
         </div>
     );
 };
+
 const UncategorizedDroppable = ({ requests, ...props }) => {
     const { isOver, setNodeRef } = useDroppable({ id: "__UNCATEGORIZED__" });
     const [isOpen, setIsOpen] = useState(true);
@@ -390,17 +390,184 @@ const UncategorizedDroppable = ({ requests, ...props }) => {
         </Collapsible>
     );
 };
-const Toolbar = ({ onNewCollection, onRefresh }) => (
-    <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-700">
+
+// Import Modal Component
+const ImportModal = ({ isOpen, onClose, onImport }) => {
+    //TODO: enum file/string
+    const [importMethod, setImportMethod] = useState("file");
+    const [jsonText, setJsonText] = useState("");
+    const [isImporting, setIsImporting] = useState(false);
+    const fileInputRef = useRef(null);
+
+    //TODO: native warnings instead of alerts
+    const handleFileSelect = (file) => {
+        if (file && file.type === "application/json") {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setJsonText(e.target.result);
+            };
+            reader.readAsText(file);
+        } else {
+            alert("Please select a valid JSON file");
+        }
+    };
+
+    const handleImport = async () => {
+        if (!jsonText.trim()) {
+            alert("Please provide JSON content to import");
+            return;
+        }
+
+        setIsImporting(true);
+        try {
+            await onImport(jsonText);
+            setJsonText("");
+            onClose();
+        } catch (error) {
+            console.error("Import failed:", error);
+            alert(`Import failed: ${error.message || "Unknown error"}`);
+        } finally {
+            setIsImporting(false);
+        }
+    };
+
+    const resetModal = () => {
+        setJsonText("");
+        setImportMethod("file");
+        setIsImporting(false);
+    };
+
+    useEffect(() => {
+        if (!isOpen) {
+            resetModal();
+        }
+    }, [isOpen]);
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Import Postman Collection</DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                    <div className="flex space-x-2">
+                        <Button
+                            variant={importMethod === "file" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                                setImportMethod("file");
+                                setJsonText("");
+                            }}
+                            className="flex items-center space-x-1"
+                        >
+                            <Upload className="w-3 h-3" />
+                            <span>File Upload</span>
+                        </Button>
+                        <Button
+                            variant={importMethod === "text" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => {
+                                setImportMethod("text");
+                                setJsonText("");
+                            }}
+                            className="flex items-center space-x-1"
+                        >
+                            <FileText className="w-3 h-3" />
+                            <span>Paste JSON</span>
+                        </Button>
+                    </div>
+                    <div className="flex items-center space-x-2"></div>
+                    {importMethod === "file" && (
+                        <div className="rounded-lg">
+                            <div className="flex items-center gap-2">
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".json,application/json"
+                                    onChange={(e) => {
+                                        if (e.target.files?.[0]) {
+                                            handleFileSelect(e.target.files[0]);
+                                        }
+                                    }}
+                                    className="flex-1 block w-full text-sm file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:opacity-90"
+                                />
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        if (fileInputRef.current?.files?.length) {
+                                            fileInputRef.current.value = "";
+                                        }
+                                        setJsonText("");
+                                    }}
+                                    className="shrink-0"
+                                >
+                                    Clear
+                                </Button>
+                            </div>
+                            {fileInputRef.current?.files?.[0] && (
+                                <p className="text-sm mt-2">
+                                    File selected:{" "}
+                                    <span className="font-semibold">
+                {fileInputRef.current.files[0].name}
+              </span>
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Text Area */}
+                    {importMethod === "text" && (
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
+                                Paste your Postman collection JSON:
+                            </label>
+                            <Textarea
+                                className="min-h-[200px] max-h-[360px] overflow-auto font-mono text-sm"
+                                placeholder="Paste your Postman collection JSON here..."
+                                value={jsonText}
+                                onChange={(e) => setJsonText(e.target.value)}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                <DialogFooter>
+                    <Button variant="outline" onClick={onClose} disabled={isImporting}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleImport}
+                        disabled={!jsonText.trim() || isImporting}
+                    >
+                        {isImporting ? "Importing..." : "Import Collection"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>    );
+};
+
+const Toolbar = ({ onNewCollection, onRefresh, onImport }) => (
+    <div className="flex items-center justify-between px-3 py-1.5 border-b ">
         <div className="flex items-center space-x-1">
-            <span className="text-sm font-medium text-slate-300">Collections</span>
+            <span className="text-sm font-medium ">Collections</span>
         </div>
         <div className="flex items-center space-x-1">
             <Button
                 size="sm"
                 variant="ghost"
                 className="h-6 w-6 p-0 hover:bg-slate-700"
+                onClick={onImport}
+                title="Import Collection"
+            >
+                <Upload className="w-3 h-3" />
+            </Button>
+            <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 hover:bg-slate-700"
                 onClick={onNewCollection}
+                title="New Collection"
             >
                 <Plus className="w-3 h-3" />
             </Button>
@@ -409,6 +576,7 @@ const Toolbar = ({ onNewCollection, onRefresh }) => (
                 variant="ghost"
                 className="h-6 w-6 p-0 hover:bg-slate-700"
                 onClick={onRefresh}
+                title="Refresh"
             >
                 <Settings className="w-3 h-3" />
             </Button>
@@ -487,6 +655,7 @@ export default function RequestListSidebar({
     const deleteCollection = useRequestStore((state) => state.deleteCollection);
 
     const [isDialogOpen, setDialogOpen] = useState(false);
+    const [isImportOpen, setImportOpen] = useState(false);
     const [newCollectionName, setNewCollectionName] = useState("");
     const [activeDragId, setActiveDragId] = useState(null);
     const [activeDragItem, setActiveDragItem] = useState(null);
@@ -553,6 +722,7 @@ export default function RequestListSidebar({
             }
         }
     };
+
     const handleCreateCollection = () => {
         if (!newCollectionName.trim()) return;
         CreateCollection(newCollectionName.trim(), "", null)
@@ -562,6 +732,17 @@ export default function RequestListSidebar({
                 loadAll();
             })
             .catch(console.error);
+    };
+
+    const handleImportCollection = async (jsonContent) => {
+        try {
+            await ImportPostmanCollection(jsonContent);
+            await loadAll(); // Refresh the collections list
+            console.log("Collection imported successfully");
+        } catch (error) {
+            console.error("Failed to import collection:", error);
+            throw error; // Re-throw to be handled by the modal
+        }
     };
 
     const handleDeleteRequest = async (id, name) => {
@@ -595,6 +776,7 @@ export default function RequestListSidebar({
                 <Toolbar
                     onNewCollection={() => setDialogOpen(true)}
                     onRefresh={loadAll}
+                    onImport={() => setImportOpen(true)}
                 />
                 <SearchBar
                     value={collectionSearch}
@@ -641,6 +823,7 @@ export default function RequestListSidebar({
                     </DndContext>
                 </div>
 
+                {/* Create Collection Dialog */}
                 <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
                     <DialogContent className="bg-slate-800 border-slate-600">
                         <DialogHeader>
@@ -661,6 +844,13 @@ export default function RequestListSidebar({
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                {/* Import Collection Modal */}
+                <ImportModal
+                    isOpen={isImportOpen}
+                    onClose={() => setImportOpen(false)}
+                    onImport={handleImportCollection}
+                />
             </div>
         );
     };

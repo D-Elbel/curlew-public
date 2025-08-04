@@ -7,6 +7,15 @@
 import {Call as $Call, Create as $Create} from "@wailsio/runtime";
 
 /**
+ * @param {string} jsonContent
+ * @returns {Promise<void> & { cancel(): void }}
+ */
+export function ImportPostmanCollection(jsonContent) {
+    let $resultPromise = /** @type {any} */($Call.ByID(2450317308, jsonContent));
+    return $resultPromise;
+}
+
+/**
  * @param {string} rawExportJSON
  * @returns {Promise<void> & { cancel(): void }}
  */

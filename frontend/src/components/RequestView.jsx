@@ -25,7 +25,9 @@ import parserPostcss from 'prettier/parser-postcss';
 
 //TODO: Move a lot of this into utils
 const formatCode = (code, contentType, bodyFormat) => {
-    if (!code || !code.trim()) return code;
+    console.log("formatCode", code, contentType, bodyFormat)
+    if (!code || typeof code === "object" || !code.trim()) return code;
+
     try {
         const type = safeString(contentType).toLowerCase();
         const format = bodyFormat || '';
@@ -691,7 +693,7 @@ function RequestView({ request }) {
 
         //TODO: Cleanup these comments and fix remaining autoformat bugs
         //const formattedBody = formatContent(result.body, contentType);
-        const formatted = await formatCode(result.body, contentType, responseContentType);
+        const formatted = await formatCode(JSON.stringify(result.body), contentType, responseContentType);
         console.log("formatted is" , formatted)
         if (formatted !== responseBody) {
             console.log("formatted is" , formatted)
@@ -1098,7 +1100,7 @@ function RequestView({ request }) {
                                 <div className="flex-none flex justify-end p-2">
                                     <button
                                         onClick={async () => {
-                                            const formatted = await formatCode(responseBody, responseContentType);
+                                            const formatted = await formatCode(JSON.stringify(responseBody), responseContentType);
                                             if (formatted !== responseBody) {
                                                 setResponseBody(formatted);
                                             }
