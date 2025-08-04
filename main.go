@@ -40,13 +40,14 @@ func main() {
 	crudService := &RequestCRUDService{db: db}
 	envarService := &EnvarService{}
 	userService := &UserService{db: db}
+	fileService := &FileService{db: db}
 	appStateService := NewAppStateService(db)
 
 	app := application.New(application.Options{
 		Name:        "curlew",
 		Description: "A demo of using raw HTML & CSS",
 		Services: []application.Service{
-			application.NewService(&FileService{db: db}),
+			application.NewService(fileService),
 			application.NewService(crudService),
 			application.NewService(envarService),
 			application.NewService(userService),

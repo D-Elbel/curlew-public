@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 )
 
 type FileService struct {
@@ -53,7 +54,9 @@ func (s *FileService) ParsePostmanV21Collection(rawExportJSON string) error {
 		return fmt.Errorf("error parsing JSON: %w", err)
 	}
 
-	//TODO: Exploratory, will probably not support versioning but including for now for completeness
+	rootCollectionID := uuid.New().String()
+
+	// TODO: Exploratory, will probably not support versioning but including for now for completeness
 	var major, minor, patch int
 	var identifier string
 	if collection.Info.Version != nil {
@@ -64,9 +67,9 @@ func (s *FileService) ParsePostmanV21Collection(rawExportJSON string) error {
 	}
 
 	_, err := s.db.Exec(`
-		INSERT INTO collections (ID, name, description, schema, version_major, version_minor, version_patch, version_identifier)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		collection.Info.PostmanID,
+		INSERT INTO collections (id, name, description, schema, version_major, version_minor, version_patch, version_identifier, parent_collection)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		rootCollectionID,
 		collection.Info.Name,
 		collection.Info.Description,
 		collection.Info.Schema,
@@ -74,32 +77,60 @@ func (s *FileService) ParsePostmanV21Collection(rawExportJSON string) error {
 		minor,
 		patch,
 		identifier,
+		nil, // Root collection has no parent
 	)
 	if err != nil {
-		return fmt.Errorf("error inserting collection: %w", err)
+		return fmt.Errorf("error inserting root collection: %w", err)
 	}
 
-	if err := s.processItems(collection.Info.PostmanID, collection.Items); err != nil {
+	if err := s.processItems(rootCollectionID, collection.Items, 0); err != nil {
 		return err
 	}
 
-	fmt.Println("Successfully imported Postman collection into the database.")
+	fmt.Printf("Successfully imported Postman collection '%s' into the database.\n", collection.Info.Name)
 	return nil
 }
 
-func (s *FileService) processItems(collectionID string, items []PostmanItem) error {
+func (s *FileService) processItems(parentCollectionID string, items []PostmanItem, sortOrder int) error {
+	currentSortOrder := sortOrder
+
 	for _, item := range items {
-		//If no request and has items it is a folder, process folders items
+		// If Postman item has no request but has items, it's a folder (subcollection)
 		if item.Request == nil && len(item.Items) > 0 {
-			fmt.Println("Folder found:", item.Name)
-			//TODO: Keep track of folders
-			if err := s.processItems(collectionID, item.Items); err != nil {
+			fmt.Printf("Processing folder: %s\n", item.Name)
+
+			folderID := uuid.New().String()
+
+			descStr := ""
+			switch d := item.Description.(type) {
+			case string:
+				descStr = d
+			case map[string]interface{}:
+				if content, ok := d["content"].(string); ok {
+					descStr = content
+				}
+			}
+
+			_, err := s.db.Exec(`
+				INSERT INTO collections (id, name, description, schema, version_major, version_minor, version_patch, version_identifier, parent_collection)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				folderID,
+				item.Name,
+				descStr,
+				"",
+				0, 0, 0, "",
+				parentCollectionID,
+			)
+			if err != nil {
+				return fmt.Errorf("error inserting folder '%s': %w", item.Name, err)
+			}
+
+			if err := s.processItems(folderID, item.Items, 0); err != nil {
 				return err
 			}
-			continue
-		}
+		} else if item.Request != nil {
+			fmt.Printf("Processing request: %s %s\n", item.Request.Method, item.Name)
 
-		if item.Request != nil {
 			descStr := ""
 			switch d := item.Description.(type) {
 			case string:
@@ -119,14 +150,15 @@ func (s *FileService) processItems(collectionID string, items []PostmanItem) err
 					urlStr = raw
 				}
 			}
+
 			headerJSON, _ := json.Marshal(item.Request.Header)
 			bodyJSON, _ := json.Marshal(item.Request.Body)
 			authJSON, _ := json.Marshal(item.Request.Auth)
 
 			_, err := s.db.Exec(`
-				INSERT INTO requests (collection_id, name, description, method, url, headers, body, auth)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-				collectionID,
+				INSERT INTO requests (collection_id, name, description, method, url, headers, body, auth, sort_order)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				parentCollectionID,
 				item.Name,
 				descStr,
 				item.Request.Method,
@@ -134,11 +166,18 @@ func (s *FileService) processItems(collectionID string, items []PostmanItem) err
 				string(headerJSON),
 				string(bodyJSON),
 				string(authJSON),
+				currentSortOrder,
 			)
 			if err != nil {
-				return fmt.Errorf("error inserting request (%s): %w", item.Name, err)
+				return fmt.Errorf("error inserting request '%s': %w", item.Name, err)
 			}
+
+			currentSortOrder++
 		}
 	}
 	return nil
+}
+
+func (s *FileService) ImportPostmanCollection(jsonContent string) error {
+	return s.ParsePostmanV21Collection(jsonContent)
 }
