@@ -10,6 +10,10 @@ import {Call as $Call, Create as $Create} from "@wailsio/runtime";
 // @ts-ignore: Unused imports
 import * as json$0 from "../../../encoding/json/models.js";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
 /**
  * @returns {Promise<json$0.RawMessage> & { cancel(): void }}
  */
@@ -17,3 +21,28 @@ export function FetchUserKeybinds() {
     let $resultPromise = /** @type {any} */($Call.ByID(1039586992));
     return $resultPromise;
 }
+
+/**
+ * @returns {Promise<$models.UserSettings | null> & { cancel(): void }}
+ */
+export function LoadUserSettings() {
+    let $resultPromise = /** @type {any} */($Call.ByID(2934528748));
+    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
+        return $$createType1($result);
+    }));
+    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
+    return $typingPromise;
+}
+
+/**
+ * @param {$models.UserSettings | null} settings
+ * @returns {Promise<void> & { cancel(): void }}
+ */
+export function SaveUserSettings(settings) {
+    let $resultPromise = /** @type {any} */($Call.ByID(2808763573, settings));
+    return $resultPromise;
+}
+
+// Private type creation functions
+const $$createType0 = $models.UserSettings.createFrom;
+const $$createType1 = $Create.Nullable($$createType0);

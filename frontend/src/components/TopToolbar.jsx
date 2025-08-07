@@ -1,5 +1,6 @@
-import React from "react";
 import { useEnvarStore } from "@/stores/envarStore";
+import SettingsModal from "@/components/SettingsModal.jsx"
+import React, { useState } from "react";
 import {
     Select,
     SelectTrigger,
@@ -17,6 +18,7 @@ import { Command, CommandInput, CommandList, CommandItem, CommandEmpty } from "@
 import { Check, Plus, Menu } from "lucide-react";
 
 function TopToolbar({ onTriggerCommand, onTriggerTabMenu }) {
+    const [settingsOpen, setSettingsOpen] = useState(false);
     const envs = useEnvarStore((state) => state.environmentVariables);
     const activeEnv = useEnvarStore((state) => state.activeEnvironment);
     const setActiveEnv = useEnvarStore((state) => state.setActiveEnvironment);
@@ -30,7 +32,7 @@ function TopToolbar({ onTriggerCommand, onTriggerTabMenu }) {
                     </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-48">
-                    <DropdownMenuItem onClick={() => console.log("Settings clicked")}>
+                    <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
                         Settings
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => console.log("Help clicked")}>
@@ -42,7 +44,8 @@ function TopToolbar({ onTriggerCommand, onTriggerTabMenu }) {
                 </DropdownMenuContent>
             </DropdownMenu>
 
-    
+
+            <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
             <div className="w-[10%]">
                 <DropdownMenu>

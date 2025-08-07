@@ -241,6 +241,48 @@ export class Response {
     }
 }
 
+export class UserSettings {
+    /**
+     * Creates a new UserSettings instance.
+     * @param {Partial<UserSettings>} [$$source = {}] - The source object to create the UserSettings.
+     */
+    constructor($$source = {}) {
+        if (!("theme" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["theme"] = "";
+        }
+        if (!("defaultEnv" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["defaultEnv"] = "";
+        }
+        if (!("enableAnimations" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["enableAnimations"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UserSettings instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {UserSettings}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UserSettings(/** @type {Partial<UserSettings>} */($$parsedSource));
+    }
+}
+
 // Private type creation functions
 const $$createType0 = Response.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);

@@ -7,7 +7,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { css } from "@codemirror/lang-css";
 import { EditorView } from "@codemirror/view";
 import { ExecuteRequest, GetRequest } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js";
-import { githubDark } from "@uiw/codemirror-theme-github";
+import { copilot } from "@uiw/codemirror-theme-copilot"
 import { Input } from "@/components/ui/input.js";
 import { EnvarSupportedInput } from "@/components/EnvarSupportedInput.jsx";
 import { methodColourMap } from "../utils/constants.js";
@@ -22,6 +22,30 @@ import * as prettier from 'prettier/standalone';
 import parserBabel from 'prettier/parser-babel';
 import * as parserHtml from 'prettier/parser-html';
 import parserPostcss from 'prettier/parser-postcss';
+
+// utils/envarUtils.js (or wherever you prefer)
+
+import { useEnvarStore } from "@/stores/envarStore";
+
+export const applyEnvVars = (text, envs, activeEnv) => {
+    if (!text || typeof text !== 'string') {
+        return text;
+    }
+
+    const envFile = envs.find(e => e.env === activeEnv);
+    if (!envFile || !envFile.variables) {
+        return text; // No active environment or variables, return original text
+    }
+
+    return text.replace(/\{\{(.*?)\}\}/g, (match, key) => {
+        if (Object.prototype.hasOwnProperty.call(envFile.variables, key)) {
+            return envFile.variables[key];
+        }
+        // If variable not found, you might want to log a warning or return the original {{key}}
+        console.warn(`Environment variable '{{${key}}}' not found in active environment '${activeEnv}'.`);
+        return match; // Return original {{key}} if not found
+    });
+};
 
 //TODO: Move a lot of this into utils
 const formatCode = (code, contentType, bodyFormat) => {
@@ -271,6 +295,8 @@ function RequestView({ request }) {
     const [errorMessage, setErrorMessage] = useState("");
 
     const collections = useRequestStore((state) => state.collections);
+    const envs = useEnvarStore(state => state.environmentVariables); // Get envs
+    const activeEnv = useEnvarStore(state => state.activeEnvironment); // Get activeEnv
     const isInitialAutosave = useRef(true);
     const saveTimeout = useRef(null);
     const isSyncingFromSave = useRef(false);
@@ -618,6 +644,7 @@ function RequestView({ request }) {
         setErrorMessage("");
         setResponseData(null);
         let finalHeaders = '';
+        console.log(url)
         try {
             finalHeaders = buildHeadersString();
         } catch (e) {
@@ -652,7 +679,7 @@ function RequestView({ request }) {
             }
             const result = await ExecuteRequest(
                 method,
-                url,
+                applyEnvVars(url, envs, activeEnv),
                 finalHeaders,
                 finalBody,
                 bodyType,
@@ -946,7 +973,7 @@ function RequestView({ request }) {
                             value={headersRaw}
                             height={headersExpanded ? "150px" : "75px"}
                             extensions={[json(), customFontTheme]}
-                            theme={githubDark}
+                            theme={copilot}
                             className="border border-gray-700 rounded w-full"
                             onChange={value => setHeadersRaw(value)}
                         />
@@ -996,7 +1023,7 @@ function RequestView({ request }) {
                                     value={bodyRaw}
                                     height="350px"
                                     extensions={[...getRequestBodyExtension(), customFontTheme]}
-                                    theme={githubDark}
+                                    theme={copilot}
                                     className="border border-gray-700 rounded w-full"
                                     onChange={setBodyRaw}
                                     basicSetup={{
@@ -1017,7 +1044,7 @@ function RequestView({ request }) {
                                         value={graphqlQuery}
                                         height="180px"
                                         extensions={[javascript(), customFontTheme]}
-                                        theme={githubDark}
+                                        theme={copilot}
                                         className="border border-gray-700 rounded w-full"
                                         onChange={value => setGraphqlQuery(value)}
                                         basicSetup={{
@@ -1035,7 +1062,7 @@ function RequestView({ request }) {
                                         value={graphqlVariables}
                                         height="180px"
                                         extensions={[json(), customFontTheme]}
-                                        theme={githubDark}
+                                        theme={copilot}
                                         className="border border-gray-700 rounded w-full"
                                         onChange={value => setGraphqlVariables(value)}
                                         basicSetup={{
@@ -1117,7 +1144,7 @@ function RequestView({ request }) {
                                     value={responseBody}
                                     height="100%"
                                     extensions={[...getLanguageExtension(responseContentType, responseBody), customFontTheme]}
-                                    theme={githubDark}
+                                    theme={copilot}
                                     className="h-full w-full"
                                     readOnly
                                     basicSetup={{
@@ -1134,7 +1161,7 @@ function RequestView({ request }) {
                                 value={responseHeaders}
                                 height="100%"
                                 extensions={[json(), customFontTheme]}
-                                theme={githubDark}
+                                theme={copilot}
                                 className="h-full w-full"
                                 readOnly
                             />
