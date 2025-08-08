@@ -53,43 +53,13 @@ import {
 import hotkeys from "hotkeys-js";
 import { useHotkeys } from "@/services/HotkeysContext.jsx";
 import { useRequestStore } from "@/stores/requestStore.js";
+import { methodColourMap} from "@/utils/constants.js";
+import { buildCollectionTree } from "@/utils/collections.js";
 
 const validUUIDRegex =
     /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-const buildCollectionTree = (collections) => {
-    const collectionMap = {};
-    const tree = [];
 
-    collections.forEach((col) => {
-        collectionMap[col.id] = { ...col, children: [] };
-    });
-
-    collections.forEach((col) => {
-        if (col.parentCollectionId && collectionMap[col.parentCollectionId]) {
-            collectionMap[col.parentCollectionId].children.push(
-                collectionMap[col.id],
-            );
-        } else {
-            tree.push(collectionMap[col.id]);
-        }
-    });
-
-    return tree;
-};
-
-const getMethodColor = (method) => {
-    const colors = {
-        GET: "text-green-400",
-        POST: "text-blue-400",
-        PUT: "text-orange-400",
-        DELETE: "text-red-400",
-        PATCH: "text-yellow-400",
-        HEAD: "text-purple-400",
-        OPTIONS: "text-gray-400",
-    };
-    return colors[method?.toUpperCase()] || "text-gray-400";
-};
 
 const DraggableRequest = ({ req, onDelete, onRequestSelect, activeDragId, index }) => {
     const {
@@ -133,8 +103,8 @@ const DraggableRequest = ({ req, onDelete, onRequestSelect, activeDragId, index 
                 <div className="flex items-center min-w-0 flex-1">
                     <File className="w-3 h-3 mr-1.5 text-slate-400 flex-shrink-0" />
                     <span
-                        className={`mr-1.5 font-mono text-[10px] font-semibold flex-shrink-0 ${getMethodColor(
-                            req.method,
+                        className={`mr-1.5 font-mono text-[10px] font-semibold flex-shrink-0 ${methodColourMap.get(
+                            req.method
                         )}`}
                     >
                         {req.method?.toUpperCase() || "GET"}

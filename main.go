@@ -30,7 +30,7 @@ func main() {
 		log.Fatal(openDbErr)
 	}
 
-	files := []string{"sql/collections.sql", "sql/requests.sql", "sql/environments.sql", "sql/responses.sql", "sql/hotkey_binds.sql", "sql/app_state.sql"}
+	files := []string{"sql/collections.sql", "sql/requests.sql", "sql/environments.sql", "sql/responses.sql", "sql/hotkey_binds.sql", "sql/app_state.sql", "sql/users.sql"}
 	for _, file := range files {
 		if err := executeSQLFromFile(db, file); err != nil {
 			log.Fatalf("Failed to execute %s: %v", file, err)

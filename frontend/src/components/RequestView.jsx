@@ -4,8 +4,6 @@ import { json } from "@codemirror/lang-json";
 import { html } from "@codemirror/lang-html";
 import { xml } from "@codemirror/lang-xml";
 import { javascript } from "@codemirror/lang-javascript";
-import { css } from "@codemirror/lang-css";
-import { EditorView } from "@codemirror/view";
 import { ExecuteRequest, GetRequest } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js";
 import { copilot } from "@uiw/codemirror-theme-copilot"
 import { Input } from "@/components/ui/input.js";
@@ -18,222 +16,30 @@ import { useHotkeys } from "@/services/HotkeysContext.jsx";
 import hotkeys from "hotkeys-js";
 import { CommandDialog, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
 import { FolderClosed } from "lucide-react";
-import * as prettier from 'prettier/standalone';
-import parserBabel from 'prettier/parser-babel';
-import * as parserHtml from 'prettier/parser-html';
-import parserPostcss from 'prettier/parser-postcss';
-
-// utils/envarUtils.js (or wherever you prefer)
+import { formatCode, formatContent, getLanguageExtension } from '../utils/codeProcessing.js'
+import { buildCollectionTree } from "../utils/collections.js"
 
 import { useEnvarStore } from "@/stores/envarStore";
 
-export const applyEnvVars = (text, envs, activeEnv) => {
+const applyEnvVars = (text, envs, activeEnv) => {
     if (!text || typeof text !== 'string') {
         return text;
     }
 
     const envFile = envs.find(e => e.env === activeEnv);
     if (!envFile || !envFile.variables) {
-        return text; // No active environment or variables, return original text
+        return text;
     }
 
     return text.replace(/\{\{(.*?)\}\}/g, (match, key) => {
         if (Object.prototype.hasOwnProperty.call(envFile.variables, key)) {
             return envFile.variables[key];
         }
-        // If variable not found, you might want to log a warning or return the original {{key}}
         console.warn(`Environment variable '{{${key}}}' not found in active environment '${activeEnv}'.`);
-        return match; // Return original {{key}} if not found
+        return match;
     });
 };
 
-//TODO: Move a lot of this into utils
-const formatCode = (code, contentType, bodyFormat) => {
-    console.log("formatCode", code, contentType, bodyFormat)
-    if (!code || typeof code === "object" || !code.trim()) return code;
-
-    try {
-        const type = safeString(contentType).toLowerCase();
-        const format = bodyFormat || '';
-        console.log("formatcode type", type, format)
-        if (type.includes('json') || format === 'JSON') {
-            try {
-                const parsed = JSON.parse(code);
-                return JSON.stringify(parsed, null, 2);
-            } catch (e) {
-                // If JSON parsing fails, try prettier
-                return prettier.format(code, {
-                    parser: 'json',
-                    plugins: [parserBabel],
-                    printWidth: 80,
-                    tabWidth: 2,
-                });
-            }
-        }
-
-        if (type.includes('javascript') || format === 'JavaScript') {
-            return prettier.format(code, {
-                parser: 'babel',
-                plugins: [parserBabel],
-                printWidth: 80,
-                tabWidth: 2,
-                useTabs: false,
-                semi: true,
-                singleQuote: true,
-            });
-        }
-
-        if (type.includes('html') || format === 'HTML') {
-            return prettier.format(code, {
-                parser: 'html',
-                plugins: [parserHtml],
-                printWidth: 80,
-                tabWidth: 2,
-                htmlWhitespaceSensitivity: 'css',
-            });
-        }
-
-        if (type.includes('css') || format === 'CSS') {
-            return prettier.format(code, {
-                parser: 'css',
-                plugins: [parserPostcss],
-                printWidth: 80,
-                tabWidth: 2,
-            });
-        }
-    } catch (error) {
-        console.warn('Failed to format code:', error);
-    }
-    return code;
-};
-
-//TODO: Proper custom font support
-const customFontTheme = EditorView.theme({
-    "&": {
-        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', Monaco, 'Inconsolata', 'Roboto Mono', 'Source Code Pro', Menlo, 'Ubuntu Mono', monospace",
-        fontSize: "14px",
-        lineHeight: "1.4"
-    },
-    ".cm-content": {
-        fontFamily: "inherit"
-    },
-    ".cm-editor": {
-        fontFamily: "inherit"
-    }
-});
-
-//TODO: rename this
-const safeString = (value) => {
-    if (typeof value === 'string') return value;
-    if (value === null || value === undefined) return '';
-    if(Array.isArray(value) && value.length){
-        //TODO: Clearer parsing out of types
-        String(value[0])
-    }
-    return String(value);
-};
-
-//TODO: move to utils
-const getLanguageExtension = (contentType, content) => {
-
-    if (!contentType && !content) return [];
-
-    const type = contentType?.toLowerCase || '';
-
-    if (type.includes('json') || type.includes('application/json')) {
-        return [json()];
-    }
-    if (type.includes('html') || type.includes('text/html')) {
-        return [html()];
-    }
-    if (type.includes('xml') || type.includes('application/xml') || type.includes('text/xml')) {
-        return [xml()];
-    }
-    if (type.includes('javascript') || type.includes('application/javascript') || type.includes('text/javascript')) {
-        return [javascript()];
-    }
-    if (type.includes('css') || type.includes('text/css')) {
-        return [css()];
-    }
-
-    if (content) {
-        const trimmed = content.trim();
-        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
-            (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-            try {
-                JSON.parse(trimmed);
-                return [json()];
-            } catch (e) {
-                console.warn(e)
-            }
-        }
-
-        if (trimmed.startsWith('<!DOCTYPE') ||
-            trimmed.startsWith('<html') ||
-            /<[a-z][\s\S]*>/i.test(trimmed)) {
-            return [html()];
-        }
-        if (trimmed.startsWith('<?xml') ||
-            (trimmed.startsWith('<') && !trimmed.includes('<html'))) {
-            return [xml()];
-        }
-    }
-    return [];
-};
-
-const formatContent = (content, contentType) => {
-    if (!content) return "";
-
-    console.log(contentType)
-    const type = contentType[0]?.toLowerCase() || '';
-
-    if (type.includes('json') || type.includes('application/json')) {
-        try {
-            if (typeof content === 'string') {
-                const parsed = JSON.parse(content);
-                return JSON.stringify(parsed, null, 2);
-            } else if (typeof content === 'object') {
-                return JSON.stringify(content, null, 2);
-            }
-        } catch (e) {
-
-        }
-    }
-
-    if (type.includes('html') || type.includes('xml')) {
-        if (typeof content === 'string' && content.length > 0) {
-            return content
-                .replace(/></g, '>\n<')
-                .replace(/^\s+|\s+$/gm, '')
-                .split('\n')
-                .map((line, index) => {
-                    const depth = (line.match(/^<[^\/]/g) ? 1 : 0) - (line.match(/<\//g) || []).length;
-                    return '  '.repeat(Math.max(0, depth)) + line.trim();
-                })
-                .join('\n');
-        }
-    }
-
-    return typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-};
-
-const buildCollectionTree = (collections) => {
-    const collectionMap = {};
-    const tree = [];
-    collections.forEach((col) => {
-        collectionMap[col.id] = { ...col, children: [] };
-    });
-    collections.forEach((col) => {
-        if (col.parentCollectionId && collectionMap[col.parentCollectionId]) {
-            collectionMap[col.parentCollectionId].children.push(
-                collectionMap[col.id],
-            );
-        } else {
-            tree.push(collectionMap[col.id]);
-        }
-    });
-    return tree;
-};
 
 const CollectionItem = ({
                             collection,
@@ -295,8 +101,8 @@ function RequestView({ request }) {
     const [errorMessage, setErrorMessage] = useState("");
 
     const collections = useRequestStore((state) => state.collections);
-    const envs = useEnvarStore(state => state.environmentVariables); // Get envs
-    const activeEnv = useEnvarStore(state => state.activeEnvironment); // Get activeEnv
+    const envs = useEnvarStore(state => state.environmentVariables);
+    const activeEnv = useEnvarStore(state => state.activeEnvironment);
     const isInitialAutosave = useRef(true);
     const saveTimeout = useRef(null);
     const isSyncingFromSave = useRef(false);
@@ -466,32 +272,6 @@ function RequestView({ request }) {
         );
     };
 
-    const buildSavePayload = () => {
-        let headers = "";
-        let saveBody = "";
-        JSON.parse(headerType === "raw" ? headersRaw : JSON.stringify(headersKV.filter(h => h.key.trim())));
-        if (headerType === "raw") {
-            headers = headersRaw;
-        } else {
-            headers = JSON.stringify(headersKV.filter(h => h.key.trim()));
-        }
-        switch (bodyType) {
-            case "raw":
-                saveBody = bodyRaw;
-                break;
-            case "graphql":
-                JSON.parse(graphqlVariables);
-                saveBody = JSON.stringify({
-                    query: graphqlQuery,
-                    variables: JSON.parse(graphqlVariables),
-                });
-                break;
-            default:
-                saveBody = "";
-        }
-        return { headers, saveBody };
-    };
-
     const saveRequest = useRequestStore(state => state.saveRequest)
 
     const handleSaveRequest = async () => {
@@ -611,7 +391,6 @@ function RequestView({ request }) {
         return undefined;
     };
 
-
     const buildHeadersObject = () => {
         let headersObj = {};
         if (headerType === "raw") {
@@ -644,7 +423,6 @@ function RequestView({ request }) {
         setErrorMessage("");
         setResponseData(null);
         let finalHeaders = '';
-        console.log(url)
         try {
             finalHeaders = buildHeadersString();
         } catch (e) {
@@ -698,8 +476,6 @@ function RequestView({ request }) {
 
     const handleResponse = async (result) => {
         setResponseData(result);
-        console.log("result", result)
-
         let contentType = "";
         if (typeof result.headers === "object") {
             contentType = result.headers["content-type"] || result.headers["Content-Type"] || "";
@@ -972,7 +748,7 @@ function RequestView({ request }) {
                         <CodeMirror
                             value={headersRaw}
                             height={headersExpanded ? "150px" : "75px"}
-                            extensions={[json(), customFontTheme]}
+                            extensions={[json()]}
                             theme={copilot}
                             className="border border-gray-700 rounded w-full"
                             onChange={value => setHeadersRaw(value)}
@@ -1022,7 +798,7 @@ function RequestView({ request }) {
                                 <CodeMirror
                                     value={bodyRaw}
                                     height="350px"
-                                    extensions={[...getRequestBodyExtension(), customFontTheme]}
+                                    extensions={[...getRequestBodyExtension()]}
                                     theme={copilot}
                                     className="border border-gray-700 rounded w-full"
                                     onChange={setBodyRaw}
@@ -1043,7 +819,7 @@ function RequestView({ request }) {
                                     <CodeMirror
                                         value={graphqlQuery}
                                         height="180px"
-                                        extensions={[javascript(), customFontTheme]}
+                                        extensions={[javascript()]}
                                         theme={copilot}
                                         className="border border-gray-700 rounded w-full"
                                         onChange={value => setGraphqlQuery(value)}
@@ -1061,7 +837,7 @@ function RequestView({ request }) {
                                     <CodeMirror
                                         value={graphqlVariables}
                                         height="180px"
-                                        extensions={[json(), customFontTheme]}
+                                        extensions={[json()]}
                                         theme={copilot}
                                         className="border border-gray-700 rounded w-full"
                                         onChange={value => setGraphqlVariables(value)}
@@ -1143,7 +919,7 @@ function RequestView({ request }) {
                                 <CodeMirror
                                     value={responseBody}
                                     height="100%"
-                                    extensions={[...getLanguageExtension(responseContentType, responseBody), customFontTheme]}
+                                    extensions={[...getLanguageExtension(responseContentType, responseBody)]}
                                     theme={copilot}
                                     className="h-full w-full"
                                     readOnly
@@ -1160,7 +936,7 @@ function RequestView({ request }) {
                             <CodeMirror
                                 value={responseHeaders}
                                 height="100%"
-                                extensions={[json(), customFontTheme]}
+                                extensions={[json()]}
                                 theme={copilot}
                                 className="h-full w-full"
                                 readOnly
