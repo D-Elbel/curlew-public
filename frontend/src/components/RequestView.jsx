@@ -531,7 +531,8 @@ function RequestView({ request }) {
             setResponseHeaders(result.headers?.toString() || "");
         }
         setResponseContentType(contentType);
-        const formatted = await formatCode(JSON.stringify(result.body), contentType, responseContentType);
+        const bodyString = typeof result.body === "string" ? result.body : JSON.stringify(result.body);
+        const formatted = await formatCode(bodyString, contentType);
         if (formatted !== responseBody) {
             setResponseBody(formatted);
         }
@@ -999,7 +1000,7 @@ function RequestView({ request }) {
                                 <div className="flex-none flex justify-end p-2">
                                     <button
                                         onClick={async () => {
-                                            const formatted = await formatCode(JSON.stringify(responseBody), responseContentType);
+                                            const formatted = await formatCode(responseBody, responseContentType);
                                             if (formatted !== responseBody) {
                                                 setResponseBody(formatted);
                                             }
