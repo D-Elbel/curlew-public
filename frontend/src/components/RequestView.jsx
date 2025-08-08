@@ -99,6 +99,13 @@ function RequestView({ request }) {
     const [responseTab, setResponseTab] = useState("body");
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
+    const [authType, setAuthType] = useState("none");
+    const [bearerToken, setBearerToken] = useState("");
+    const [basicUsername, setBasicUsername] = useState("");
+    const [basicPassword, setBasicPassword] = useState("");
+    const [apiKeyKey, setApiKeyKey] = useState("");
+    const [apiKeyValue, setApiKeyValue] = useState("");
+    const [apiKeyAddTo, setApiKeyAddTo] = useState("headers");
 
     const collections = useRequestStore((state) => state.collections);
     const envs = useEnvarStore(state => state.environmentVariables);
@@ -230,6 +237,39 @@ function RequestView({ request }) {
         syncFullRequest();
     }, [fullRequest]);
 
+    useEffect(() => {
+        let updatedHeaders = buildHeadersObject();
+        delete updatedHeaders["Authorization"];
+        if (authType !== "apikey") {
+            delete updatedHeaders[apiKeyKey];
+        }
+        if (authType === "bearer" && bearerToken) {
+            updatedHeaders["Authorization"] = `Bearer ${bearerToken}`;
+        } else if (authType === "basic" && (basicUsername || basicPassword)) {
+            const encoded = btoa(`${basicUsername}:${basicPassword}`);
+            updatedHeaders["Authorization"] = `Basic ${encoded}`;
+        } else if (authType === "apikey" && apiKeyKey && apiKeyValue) {
+            if (apiKeyAddTo === "headers") {
+                updatedHeaders[apiKeyKey] = apiKeyValue;
+            }
+        }
+        if (headerType === "raw") {
+            setHeadersRaw(JSON.stringify(updatedHeaders, null, 2));
+        } else {
+            setHeadersKV(
+                Object.entries(updatedHeaders).map(([key, value]) => ({ key, value }))
+            );
+        }
+    }, [
+        authType,
+        bearerToken,
+        basicUsername,
+        basicPassword,
+        apiKeyKey,
+        apiKeyValue,
+        apiKeyAddTo
+    ]);
+
     const flattenCollections = (tree, level = 0) => {
         let result = [];
         for (const col of tree) {
@@ -241,8 +281,6 @@ function RequestView({ request }) {
         return result;
     };
 
-
-    //TODO: Improve this, functional but ugly
     const renderCollectionsTab = () => {
         const collectionTree = buildCollectionTree(collections);
         const flatCollections = flattenCollections(collectionTree);
@@ -312,13 +350,10 @@ function RequestView({ request }) {
     const handleSaveRequestToCollection = async (collectionId) => {
         setIsLoading(true)
         setIsDialogOpen(true)
-
-
         try {
             let responseDataToSave = null;
             if (responseData) {
                 responseDataToSave = { ...responseData };
-
                 if (typeof responseDataToSave.body !== 'string') {
                     responseDataToSave.body = JSON.stringify(responseDataToSave.body);
                 }
@@ -375,7 +410,6 @@ function RequestView({ request }) {
         graphqlVariables,
     ]);
 
-
     const getDefaultContentType = () => {
         if (bodyType === "graphql") return "application/json";
         if (bodyType === "raw") {
@@ -405,7 +439,6 @@ function RequestView({ request }) {
                 if (h.key && h.value) headersObj[h.key] = h.value;
             });
         }
-
         const hasContentType = Object.keys(headersObj).some(
             k => k.toLowerCase() === "content-type"
         );
@@ -422,6 +455,12 @@ function RequestView({ request }) {
         setIsLoading(true);
         setErrorMessage("");
         setResponseData(null);
+        let finalUrl = applyEnvVars(url, envs, activeEnv);
+        if (authType === "apikey" && apiKeyAddTo === "query" && apiKeyKey && apiKeyValue) {
+            const urlObj = new URL(finalUrl);
+            urlObj.searchParams.set(apiKeyKey, apiKeyValue);
+            finalUrl = urlObj.toString();
+        }
         let finalHeaders = '';
         try {
             finalHeaders = buildHeadersString();
@@ -457,7 +496,7 @@ function RequestView({ request }) {
             }
             const result = await ExecuteRequest(
                 method,
-                applyEnvVars(url, envs, activeEnv),
+                finalUrl,
                 finalHeaders,
                 finalBody,
                 bodyType,
@@ -491,18 +530,11 @@ function RequestView({ request }) {
         } else {
             setResponseHeaders(result.headers?.toString() || "");
         }
-
         setResponseContentType(contentType);
-
-        //TODO: Cleanup these comments and fix remaining autoformat bugs
-        //const formattedBody = formatContent(result.body, contentType);
         const formatted = await formatCode(JSON.stringify(result.body), contentType, responseContentType);
-        console.log("formatted is" , formatted)
         if (formatted !== responseBody) {
-            console.log("formatted is" , formatted)
             setResponseBody(formatted);
         }
-        //setResponseBody(formattedBody);
     };
 
     const renderKeyValueTable = (dataArray, setDataArray) => {
@@ -716,6 +748,14 @@ function RequestView({ request }) {
                     Headers
                 </button>
                 <button
+                    onClick={() => setActiveTab("authorization")}
+                    className={`px-4 py-2 mr-2 focus:outline-none ${
+                        activeTab === "authorization" ? "border-b-2 border-blue-500" : "text-gray-400"
+                    }`}
+                >
+                    Authorization
+                </button>
+                <button
                     onClick={() => setActiveTab("body")}
                     className={`px-4 py-2 focus:outline-none ${
                         activeTab === "body" ? "border-b-2 border-blue-500" : "text-gray-400"
@@ -755,6 +795,65 @@ function RequestView({ request }) {
                         />
                     )}
                     {headerType === "keyvalue" && renderKeyValueTable(headersKV, setHeadersKV)}
+                </div>
+            )}
+            {activeTab === "authorization" && (
+                <div className="p-3 rounded-lg shadow-md">
+                    <h3 className="font-semibold mb-2">Authorization</h3>
+                    <select
+                        value={authType}
+                        onChange={(e) => setAuthType(e.target.value)}
+                        className="bg-gray-800 text-white rounded px-2 py-1 mb-4"
+                    >
+                        <option value="none">None</option>
+                        <option value="bearer">Bearer Token</option>
+                        <option value="basic">Basic Auth</option>
+                        <option value="apikey">API Key</option>
+                    </select>
+                    {authType === "bearer" && (
+                        <Input
+                            placeholder="Enter Bearer Token"
+                            value={bearerToken}
+                            onChange={(e) => setBearerToken(e.target.value)}
+                        />
+                    )}
+                    {authType === "basic" && (
+                        <div className="space-y-2">
+                            <Input
+                                placeholder="Username"
+                                value={basicUsername}
+                                onChange={(e) => setBasicUsername(e.target.value)}
+                            />
+                            <Input
+                                placeholder="Password"
+                                type="password"
+                                value={basicPassword}
+                                onChange={(e) => setBasicPassword(e.target.value)}
+                            />
+                        </div>
+                    )}
+                    {authType === "apikey" && (
+                        <div className="space-y-2">
+                            <Input
+                                placeholder="API Key Name"
+                                value={apiKeyKey}
+                                onChange={(e) => setApiKeyKey(e.target.value)}
+                            />
+                            <Input
+                                placeholder="API Key Value"
+                                value={apiKeyValue}
+                                onChange={(e) => setApiKeyValue(e.target.value)}
+                            />
+                            <select
+                                value={apiKeyAddTo}
+                                onChange={(e) => setApiKeyAddTo(e.target.value)}
+                                className="bg-gray-800 text-white rounded px-2 py-1"
+                            >
+                                <option value="headers">Add to Headers</option>
+                                <option value="query">Add to Query Params</option>
+                            </select>
+                        </div>
+                    )}
                 </div>
             )}
             {activeTab === "body" && (
@@ -886,19 +985,16 @@ function RequestView({ request }) {
                                 <span className="text-gray-400">
                                     <strong>Size:</strong> {(new Blob([responseBody]).size / 1024).toFixed(2)} KB
                                 </span>
-
                             </div>
-
                         </div>
-
                     </div>
                     {responseTab === "body" ? (
                         <div className="flex-1 flex flex-col overflow-hidden">
                             <div className="flex-none border-b border-gray-700 flex items-center justify-between">
                                 {responseContentType && (
                                     <div className="text-xs text-gray-400 px-4 py-2">
-                                    {responseContentType[0]?.split(';')[0]}
-                                </div>
+                                        {responseContentType[0]?.split(';')[0]}
+                                    </div>
                                 )}
                                 <div className="flex-none flex justify-end p-2">
                                     <button
@@ -914,7 +1010,6 @@ function RequestView({ request }) {
                                     </button>
                                 </div>
                             </div>
-
                             <div className="flex-1 p-3 overflow-auto">
                                 <CodeMirror
                                     value={responseBody}
