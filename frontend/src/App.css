@@ -5,6 +5,9 @@
   font-family: 'MyFont';
   src: local('MyFont'), url(./assets/fonts/JetBrainsMono-Light.woff2) format('woff2');
 }
+body {
+  pointer-events: auto !important;
+}
 body{
   font-family: 'MyFont';
 }

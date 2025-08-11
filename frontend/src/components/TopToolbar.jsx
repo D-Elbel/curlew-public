@@ -45,7 +45,7 @@ function TopToolbar({ onTriggerCommand, onTriggerTabMenu }) {
             </DropdownMenu>
 
 
-            <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+            <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
 
             <div className="w-[10%]">
                 <DropdownMenu>

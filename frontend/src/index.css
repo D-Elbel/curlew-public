@@ -33,6 +33,9 @@ h1 {
   line-height: 1.1;
 }
 
+body {
+  pointer-events: auto !important;
+}
 
 
 button:focus,

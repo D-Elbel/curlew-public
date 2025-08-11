@@ -18,26 +18,35 @@ export const HotkeysProvider = ({ children }) => {
     const [hotkeysMap, setHotkeysMap] = useState(defaultHotkeysMap)
     const defs = useRef(new Map())
 
-    useEffect(() => {
-        let mounted = true
-        FetchUserKeybinds()
-            .then(dbHotkeys => {
-                if (!mounted) return
-                if (Array.isArray(dbHotkeys) && dbHotkeys.length) {
-                    setHotkeysMap(prev => {
-                        const merged = { ...prev }
-                        for (const { command, bind } of dbHotkeys) {
-                            if (merged.hasOwnProperty(command)) {
-                                merged[command] = bind
-                            }
+    // Function to load keybinds from DB
+    const loadKeybinds = async () => {
+        try {
+            const dbHotkeys = await FetchUserKeybinds()
+            if (Array.isArray(dbHotkeys) && dbHotkeys.length) {
+                setHotkeysMap(prev => {
+                    const merged = { ...prev }
+                    for (const { command, bind } of dbHotkeys) {
+                        if (merged.hasOwnProperty(command)) {
+                            merged[command] = bind
                         }
-                        return merged
-                    })
-                }
-            })
-            .catch(console.error)
-        return () => { mounted = false }
+                    }
+                    return merged
+                })
+            }
+        } catch (err) {
+            console.error("Failed to fetch hotkeys:", err)
+        }
+    }
+
+    // Initial load
+    useEffect(() => {
+        loadKeybinds()
     }, [])
+
+    // Public reload function
+    const reloadHotkeys = async () => {
+        await loadKeybinds()
+    }
 
     const register = ({ id, combo, handler }) => {
         if (defs.current.has(id)) {
@@ -68,7 +77,9 @@ export const HotkeysProvider = ({ children }) => {
     }, [])
 
     return (
-        <HotkeysContext.Provider value={{ hotkeysMap, register, unregister, remap }}>
+        <HotkeysContext.Provider
+            value={{ hotkeysMap, register, unregister, remap, reloadHotkeys }}
+        >
             {children}
         </HotkeysContext.Provider>
     )

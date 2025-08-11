@@ -894,6 +894,19 @@ function RequestView({ request }) {
                                     ))}
                                 </select>
                             </div>
+                            <div className="flex items-center mb-2 justify-end">
+                                <button
+                                    onClick={async () => {
+                                        const formatted = await formatCode(bodyRaw, getDefaultContentType(), bodyFormat);
+                                        if (formatted !== bodyRaw) {
+                                            setBodyRaw(formatted);
+                                        }
+                                    }}
+                                    className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm transition"
+                                >
+                                    Format Body
+                                </button>
+                            </div>
                             <div className="max-h-96 overflow-auto">
                                 <CodeMirror
                                     value={bodyRaw}
@@ -991,26 +1004,13 @@ function RequestView({ request }) {
                     </div>
                     {responseTab === "body" ? (
                         <div className="flex-1 flex flex-col overflow-hidden">
-                            <div className="flex-none border-b border-gray-700 flex items-center justify-between">
-                                {responseContentType && (
-                                    <div className="text-xs text-gray-400 px-4 py-2">
-                                        {responseContentType[0]?.split(';')[0]}
-                                    </div>
-                                )}
-                                <div className="flex-none flex justify-end p-2">
-                                    <button
-                                        onClick={async () => {
-                                            const formatted = await formatCode(responseBody, responseContentType);
-                                            if (formatted !== responseBody) {
-                                                setResponseBody(formatted);
-                                            }
-                                        }}
-                                        className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm transition"
-                                    >
-                                        Format Response
-                                    </button>
+                                                            <div className="flex-none border-b border-gray-700 flex items-center justify-between">
+                                    {responseContentType && (
+                                        <div className="text-xs text-gray-400 px-4 py-2">
+                                            {responseContentType[0]?.split(';')[0]}
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
                             <div className="flex-1 p-3 overflow-auto">
                                 <CodeMirror
                                     value={responseBody}
