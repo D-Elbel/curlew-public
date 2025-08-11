@@ -1,3 +1,4 @@
+// RequestView.jsx
 import React, { useState, useEffect, useRef } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
@@ -35,34 +36,35 @@ const applyEnvVars = (text, envs, activeEnv) => {
         if (Object.prototype.hasOwnProperty.call(envFile.variables, key)) {
             return envFile.variables[key];
         }
-        console.warn(`Environment variable '{{${key}}}' not found in active environment '${activeEnv}'.`);
+        console.warn(
+            `Environment variable '{{${key}}}' not found in active environment ` +
+            `'${activeEnv}'.`
+        );
         return match;
     });
 };
 
-
 const CollectionItem = ({
                             collection,
                             level = 0,
-                            handleSaveRequestToCollection
+                            handleSaveRequestToCollection,
                         }) => {
     const style = {
         paddingLeft: `${level * 1.25}rem`,
     };
-    console.log(collection)
     return (
-        <div
-            style={style}
-            className={`rounded mt-1`}
-        >
+        <div style={style} className={`rounded mt-1`}>
             <div className="flex flex-row justify-between">
                 <div>
                     <p>| {collection.name}</p>
                 </div>
-                <Button onClick={() => handleSaveRequestToCollection(collection.id)}>+</Button>
+                <Button onClick={() => handleSaveRequestToCollection(collection.id)}>
+                    +
+                </Button>
             </div>
             {collection.children?.map((child) => (
                 <CollectionItem
+                    key={child.id}
                     handleSaveRequestToCollection={handleSaveRequestToCollection}
                     collection={child}
                     level={level + 1}
@@ -74,23 +76,43 @@ const CollectionItem = ({
 
 function RequestView({ request }) {
     const { hotkeysMap } = useHotkeys();
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [method, setMethod] = useState(request?.method || "GET");
-    const [collectionName, setCollectionName] = useState(request?.collectionName || "");
+    const [collectionName, setCollectionName] = useState(
+        request?.collectionName || ""
+    );
     const [url, setUrl] = useState(request?.url || "");
     const [auth, setAuth] = useState(request?.auth || "");
     const [name, setName] = useState(request?.name || "Untitled Request");
-    const [bodyFormat, setBodyFormat] = useState(request?.bodyFormat || "JSON");
-    const [description, setDescription] = useState(request?.description || "");
+    const [bodyFormat, setBodyFormat] = useState(
+        request?.bodyFormat || "JSON"
+    );
+    const [description, setDescription] = useState(
+        request?.description || ""
+    );
     const [activeTab, setActiveTab] = useState("body");
     const [headerType, setHeaderType] = useState("raw");
     const [headersKV, setHeadersKV] = useState([{ key: "", value: "" }]);
     const [headersRaw, setHeadersRaw] = useState(request?.headers);
     const [headersExpanded, setHeadersExpanded] = useState(false);
+
     const [bodyType, setBodyType] = useState(request?.bodyType || "none");
     const [bodyRaw, setBodyRaw] = useState(request?.body || "");
+
     const [graphqlQuery, setGraphqlQuery] = useState("");
     const [graphqlVariables, setGraphqlVariables] = useState("{}");
+
+    const [formDataItems, setFormDataItems] = useState([
+        { key: "", type: "text", value: "" },
+    ]);
+    const [urlencodedItems, setUrlencodedItems] = useState([
+        { key: "", value: "" },
+    ]);
+    const [binaryFile, setBinaryFile] = useState(null);
+    // {
+    // filename, mimeType, dataBase64
+    // }
+
     const [responseData, setResponseData] = useState(null);
     const [responseHeaders, setResponseHeaders] = useState("");
     const [responseBody, setResponseBody] = useState("");
@@ -108,8 +130,8 @@ function RequestView({ request }) {
     const [apiKeyAddTo, setApiKeyAddTo] = useState("headers");
 
     const collections = useRequestStore((state) => state.collections);
-    const envs = useEnvarStore(state => state.environmentVariables);
-    const activeEnv = useEnvarStore(state => state.activeEnvironment);
+    const envs = useEnvarStore((state) => state.environmentVariables);
+    const activeEnv = useEnvarStore((state) => state.activeEnvironment);
     const isInitialAutosave = useRef(true);
     const saveTimeout = useRef(null);
     const isSyncingFromSave = useRef(false);
@@ -117,7 +139,7 @@ function RequestView({ request }) {
     useEffect(() => {
         const fn = (e) => {
             e.preventDefault();
-            setIsDialogOpen(true)
+            setIsDialogOpen(true);
         };
         hotkeys(hotkeysMap.HANDLE_ENTITY_SAVE, fn);
         return () => hotkeys.unbind(hotkeysMap.HANDLE_ENTITY_SAVE, fn);
@@ -129,7 +151,6 @@ function RequestView({ request }) {
             try {
                 const fetched = await GetRequest(request.id);
                 setFullRequest(fetched);
-                console.log("fetched request", fetched)
             } catch (e) {
                 console.error(e);
                 setErrorMessage("Failed to fetch request details.");
@@ -155,16 +176,19 @@ function RequestView({ request }) {
 
             try {
                 const parsed = JSON.parse(fullRequest.headers);
-                if (Array.isArray(parsed) && parsed.every(h => "key" in h && "value" in h)) {
+                if (
+                    Array.isArray(parsed) &&
+                    parsed.every((h) => "key" in h && "value" in h)
+                ) {
                     setHeaderType("keyvalue");
-                    setHeadersKV(parsed.length ? parsed : [{key: "", value: ""}]);
+                    setHeadersKV(parsed.length ? parsed : [{ key: "", value: "" }]);
                 } else {
                     setHeaderType("raw");
                     setHeadersRaw(fullRequest.headers);
                 }
             } catch {
                 setHeaderType("keyvalue");
-                setHeadersKV([{key: "", value: ""}]);
+                setHeadersKV([{ key: "", value: "" }]);
             }
 
             const bt = fullRequest.bodyType || "none";
@@ -175,12 +199,50 @@ function RequestView({ request }) {
                     break;
                 case "graphql":
                     try {
-                        const {query, variables} = JSON.parse(fullRequest.body);
+                        const { query, variables } = JSON.parse(fullRequest.body || "{}");
                         setGraphqlQuery(query || "");
-                        setGraphqlVariables(JSON.stringify(variables || {}, null, 2));
+                        setGraphqlVariables(
+                            JSON.stringify(variables || {}, null, 2)
+                        );
                     } catch {
                         setGraphqlQuery("");
                         setGraphqlVariables("{}");
+                    }
+                    break;
+                case "formdata":
+                    try {
+                        const payload = JSON.parse(fullRequest.body || "{}");
+                        const items = Array.isArray(payload?.fields)
+                            ? payload.fields
+                            : [];
+                        setFormDataItems(
+                            items.length
+                                ? items
+                                : [{ key: "", type: "text", value: "" }]
+                        );
+                    } catch {
+                        setFormDataItems([{ key: "", type: "text", value: "" }]);
+                    }
+                    break;
+                case "urlencoded":
+                    try {
+                        const payload = JSON.parse(fullRequest.body || "{}");
+                        const items = Array.isArray(payload?.fields)
+                            ? payload.fields
+                            : [];
+                        setUrlencodedItems(
+                            items.length ? items : [{ key: "", value: "" }]
+                        );
+                    } catch {
+                        setUrlencodedItems([{ key: "", value: "" }]);
+                    }
+                    break;
+                case "binary":
+                    try {
+                        const payload = JSON.parse(fullRequest.body || "null");
+                        setBinaryFile(payload || null);
+                    } catch {
+                        setBinaryFile(null);
                     }
                     break;
                 default:
@@ -197,26 +259,46 @@ function RequestView({ request }) {
                     if (typeof response.headers === "string") {
                         try {
                             const parsedHeaders = JSON.parse(response.headers);
-                            headersToDisplay = JSON.stringify(parsedHeaders, null, 2);
-                            contentType = parsedHeaders["content-type"] || parsedHeaders["Content-Type"] || "";
+                            headersToDisplay = JSON.stringify(
+                                parsedHeaders,
+                                null,
+                                2
+                            );
+                            contentType =
+                                parsedHeaders["content-type"] ||
+                                parsedHeaders["Content-Type"] ||
+                                "";
                         } catch {
                             headersToDisplay = response.headers;
                         }
                     } else if (typeof response.headers === "object") {
-                        headersToDisplay = JSON.stringify(response.headers, null, 2);
-                        contentType = response.headers["content-type"] || response.headers["Content-Type"] || "";
+                        headersToDisplay = JSON.stringify(
+                            response.headers,
+                            null,
+                            2
+                        );
+                        contentType =
+                            response.headers["content-type"] ||
+                            response.headers["Content-Type"] ||
+                            "";
                     }
                     setResponseHeaders(headersToDisplay);
                     setResponseContentType(contentType);
 
-                    const formattedBody = formatContent(response.body, contentType);
-                    const formatted = await formatCode(response.body, contentType, responseContentType);
+                    const formattedBody = formatContent(
+                        response.body,
+                        contentType
+                    );
+                    const formatted = await formatCode(
+                        response.body,
+                        contentType,
+                        responseContentType
+                    );
                     if (formatted !== responseBody) {
                         setResponseBody(formatted);
                     } else {
                         setResponseBody(formattedBody);
                     }
-
                 } catch (error) {
                     console.error("Error parsing existing response:", error);
                     setResponseData(null);
@@ -248,7 +330,11 @@ function RequestView({ request }) {
         } else if (authType === "basic" && (basicUsername || basicPassword)) {
             const encoded = btoa(`${basicUsername}:${basicPassword}`);
             updatedHeaders["Authorization"] = `Basic ${encoded}`;
-        } else if (authType === "apikey" && apiKeyKey && apiKeyValue) {
+        } else if (
+            authType === "apikey" &&
+            apiKeyKey &&
+            apiKeyValue
+        ) {
             if (apiKeyAddTo === "headers") {
                 updatedHeaders[apiKeyKey] = apiKeyValue;
             }
@@ -257,7 +343,10 @@ function RequestView({ request }) {
             setHeadersRaw(JSON.stringify(updatedHeaders, null, 2));
         } else {
             setHeadersKV(
-                Object.entries(updatedHeaders).map(([key, value]) => ({ key, value }))
+                Object.entries(updatedHeaders).map(([key, value]) => ({
+                    key,
+                    value,
+                }))
             );
         }
     }, [
@@ -267,7 +356,7 @@ function RequestView({ request }) {
         basicPassword,
         apiKeyKey,
         apiKeyValue,
-        apiKeyAddTo
+        apiKeyAddTo,
     ]);
 
     const flattenCollections = (tree, level = 0) => {
@@ -275,7 +364,9 @@ function RequestView({ request }) {
         for (const col of tree) {
             result.push({ ...col, level });
             if (col.children && col.children.length > 0) {
-                result = result.concat(flattenCollections(col.children, level + 1));
+                result = result.concat(
+                    flattenCollections(col.children, level + 1)
+                );
             }
         }
         return result;
@@ -290,99 +381,160 @@ function RequestView({ request }) {
                     key="nofolder"
                     onSelect={() => handleSaveRequestToCollection(null)}
                 >
-                    <span className="inline-flex items-center">
-                        <FolderClosed className="w-4 h-4 mr-2 text-slate-400" />
-                        No Folder
-                    </span>
+          <span className="inline-flex items-center">
+            <FolderClosed className="w-4 h-4 mr-2 text-slate-400" />
+            No Folder
+          </span>
                 </CommandItem>
                 {flatCollections.map((col) => (
                     <CommandItem
                         key={col.id}
                         onSelect={() => handleSaveRequestToCollection(col.id)}
                     >
-                        <span className="inline-flex items-center" style={{ paddingLeft: `${col.level * 16}px` }}>
-                            <FolderClosed className="w-4 h-4 mr-2 text-blue-400" />
-                            {col.name}
-                        </span>
+            <span
+                className="inline-flex items-center"
+                style={{ paddingLeft: `${col.level * 16}px` }}
+            >
+              <FolderClosed className="w-4 h-4 mr-2 text-blue-400" />
+                {col.name}
+            </span>
                     </CommandItem>
                 ))}
             </CommandList>
         );
     };
 
-    const saveRequest = useRequestStore(state => state.saveRequest)
+    const saveRequest = useRequestStore((state) => state.saveRequest);
+
+    const buildBodyForPersist = () => {
+        switch (bodyType) {
+            case "none":
+                return "";
+            case "raw":
+                return bodyRaw || "";
+            case "graphql": {
+                let vars = {};
+                try {
+                    vars = JSON.parse(graphqlVariables || "{}");
+                } catch {
+                    vars = {};
+                }
+                return JSON.stringify({ query: graphqlQuery || "", variables: vars });
+            }
+            case "formdata": {
+                const fields = (formDataItems || []).map((i) => ({
+                    key: i.key || "",
+                    type: i.type || "text",
+                    value: i.type === "text" ? i.value || "" : undefined,
+                    filename:
+                        i.type === "file" ? i.filename || "file" : undefined,
+                    mimeType:
+                        i.type === "file"
+                            ? i.mimeType || "application/octet-stream"
+                            : undefined,
+                    dataBase64:
+                        i.type === "file" ? i.dataBase64 || "" : undefined,
+                }));
+                return JSON.stringify({ fields });
+            }
+            case "urlencoded": {
+                const fields = (urlencodedItems || []).map((i) => ({
+                    key: i.key || "",
+                    value: i.value || "",
+                }));
+                return JSON.stringify({ fields });
+            }
+            case "binary": {
+                return JSON.stringify(binaryFile || {});
+            }
+            default:
+                return "";
+        }
+    };
 
     const handleSaveRequest = async () => {
-        setIsLoading(true)
+        setIsLoading(true);
         try {
             let responseDataToSave = null;
             if (responseData) {
                 responseDataToSave = { ...responseData };
-                if (typeof responseDataToSave.body !== 'string') {
-                    responseDataToSave.body = JSON.stringify(responseDataToSave.body);
+                if (typeof responseDataToSave.body !== "string") {
+                    responseDataToSave.body = JSON.stringify(
+                        responseDataToSave.body
+                    );
                 }
-                if (typeof responseDataToSave.headers !== 'string') {
-                    responseDataToSave.headers = JSON.stringify(responseDataToSave.headers);
+                if (typeof responseDataToSave.headers !== "string") {
+                    responseDataToSave.headers = JSON.stringify(
+                        responseDataToSave.headers
+                    );
                 }
             }
-            const saved = await saveRequest({
-                id:        fullRequest?.id,
+            const bodyPersist = buildBodyForPersist();
+            await saveRequest({
+                id: fullRequest?.id,
                 collectionId: request.collectionId,
                 name,
                 description: description,
                 method,
                 requestUrl: url,
                 headers: headersRaw,
-                body:    bodyRaw,
+                body: bodyPersist,
                 bodyType: bodyType,
                 bodyFormat: bodyFormat,
                 auth: auth,
-                response: responseDataToSave
-            })
+                response: responseDataToSave,
+            });
+            isSyncingFromSave.current = true;
         } catch (e) {
-            console.error(e)
-            setErrorMessage("Save failed.")
+            console.error(e);
+            setErrorMessage("Save failed.");
         } finally {
-            setIsLoading(false)
+            setIsLoading(false);
         }
-    }
+    };
 
     const handleSaveRequestToCollection = async (collectionId) => {
-        setIsLoading(true)
-        setIsDialogOpen(true)
+        setIsLoading(true);
+        setIsDialogOpen(true);
         try {
             let responseDataToSave = null;
             if (responseData) {
                 responseDataToSave = { ...responseData };
-                if (typeof responseDataToSave.body !== 'string') {
-                    responseDataToSave.body = JSON.stringify(responseDataToSave.body);
+                if (typeof responseDataToSave.body !== "string") {
+                    responseDataToSave.body = JSON.stringify(
+                        responseDataToSave.body
+                    );
                 }
-                if (typeof responseDataToSave.headers !== 'string') {
-                    responseDataToSave.headers = JSON.stringify(responseDataToSave.headers);
+                if (typeof responseDataToSave.headers !== "string") {
+                    responseDataToSave.headers = JSON.stringify(
+                        responseDataToSave.headers
+                    );
                 }
             }
-            const saved = await saveRequest({
-                id:        fullRequest?.id,
+            const bodyPersist = buildBodyForPersist();
+            await saveRequest({
+                id: fullRequest?.id,
                 collectionId: collectionId,
                 name,
                 description: description,
                 method,
                 requestUrl: url,
                 headers: headersRaw,
-                body:    bodyRaw,
+                body: bodyPersist,
                 bodyType: bodyType,
                 bodyFormat: bodyFormat,
                 auth: auth,
-                response: responseDataToSave
-            })
-            setIsDialogOpen(false)
+                response: responseDataToSave,
+            });
+            isSyncingFromSave.current = true;
+            setIsDialogOpen(false);
         } catch (e) {
-            console.error(e)
-            setErrorMessage("Save failed.")
+            console.error(e);
+            setErrorMessage("Save failed.");
         } finally {
-            setIsLoading(false)
+            setIsLoading(false);
         }
-    }
+    };
 
     useEffect(() => {
         if (!fullRequest?.id) return;
@@ -408,18 +560,31 @@ function RequestView({ request }) {
         bodyRaw,
         graphqlQuery,
         graphqlVariables,
+        formDataItems,
+        urlencodedItems,
+        binaryFile,
     ]);
 
     const getDefaultContentType = () => {
         if (bodyType === "graphql") return "application/json";
+        if (bodyType === "urlencoded")
+            return "application/x-www-form-urlencoded";
+        if (bodyType === "binary")
+            return binaryFile?.mimeType || "application/octet-stream";
+        if (bodyType === "formdata") return undefined; // boundary set by backend
         if (bodyType === "raw") {
             switch (bodyFormat) {
-                case "JSON": return "application/json";
-                case "JavaScript": return "application/javascript";
-                case "HTML": return "text/html";
-                case "XML": return "application/xml";
+                case "JSON":
+                    return "application/json";
+                case "JavaScript":
+                    return "application/javascript";
+                case "HTML":
+                    return "text/html";
+                case "XML":
+                    return "application/xml";
                 case "Text":
-                default: return "text/plain";
+                default:
+                    return "text/plain";
             }
         }
         return undefined;
@@ -435,17 +600,28 @@ function RequestView({ request }) {
             }
         } else if (headerType === "keyvalue") {
             headersObj = {};
-            headersKV.forEach(h => {
+            headersKV.forEach((h) => {
                 if (h.key && h.value) headersObj[h.key] = h.value;
             });
         }
+
         const hasContentType = Object.keys(headersObj).some(
-            k => k.toLowerCase() === "content-type"
+            (k) => k.toLowerCase() === "content-type"
         );
         if (!hasContentType) {
             const defaultType = getDefaultContentType();
             if (defaultType) headersObj["Content-Type"] = defaultType;
         }
+
+        // Ensure we do NOT set Content-Type for multipart/form-data
+        if (bodyType === "formdata") {
+            for (const k of Object.keys(headersObj)) {
+                if (k.toLowerCase() === "content-type") {
+                    delete headersObj[k];
+                }
+            }
+        }
+
         return headersObj;
     };
 
@@ -455,13 +631,20 @@ function RequestView({ request }) {
         setIsLoading(true);
         setErrorMessage("");
         setResponseData(null);
+
         let finalUrl = applyEnvVars(url, envs, activeEnv);
-        if (authType === "apikey" && apiKeyAddTo === "query" && apiKeyKey && apiKeyValue) {
+        if (
+            authType === "apikey" &&
+            apiKeyAddTo === "query" &&
+            apiKeyKey &&
+            apiKeyValue
+        ) {
             const urlObj = new URL(finalUrl);
             urlObj.searchParams.set(apiKeyKey, apiKeyValue);
             finalUrl = urlObj.toString();
         }
-        let finalHeaders = '';
+
+        let finalHeaders = "";
         try {
             finalHeaders = buildHeadersString();
         } catch (e) {
@@ -469,21 +652,22 @@ function RequestView({ request }) {
             setErrorMessage("Invalid headers format: " + e.message);
             return;
         }
-        let finalBody = '';
+
+        let finalBody = "";
         try {
             switch (bodyType) {
                 case "none":
-                    finalBody = '';
+                    finalBody = "";
                     break;
                 case "raw":
-                    finalBody = bodyRaw;
+                    finalBody = bodyRaw || "";
                     break;
                 case "graphql":
                     try {
-                        const variables = JSON.parse(graphqlVariables);
+                        const variables = JSON.parse(graphqlVariables || "{}");
                         finalBody = JSON.stringify({
-                            query: graphqlQuery,
-                            variables: variables
+                            query: graphqlQuery || "",
+                            variables,
                         });
                     } catch (e) {
                         setErrorMessage("Error in GraphQL variables: " + e.message);
@@ -491,9 +675,39 @@ function RequestView({ request }) {
                         return;
                     }
                     break;
+                case "formdata": {
+                    const fields = (formDataItems || []).map((i) => ({
+                        key: i.key || "",
+                        type: i.type || "text",
+                        value: i.type === "text" ? i.value || "" : undefined,
+                        filename:
+                            i.type === "file" ? i.filename || "file" : undefined,
+                        mimeType:
+                            i.type === "file"
+                                ? i.mimeType || "application/octet-stream"
+                                : undefined,
+                        dataBase64:
+                            i.type === "file" ? i.dataBase64 || "" : undefined,
+                    }));
+                    finalBody = JSON.stringify({ fields });
+                    break;
+                }
+                case "urlencoded": {
+                    const fields = (urlencodedItems || []).map((i) => ({
+                        key: i.key || "",
+                        value: i.value || "",
+                    }));
+                    finalBody = JSON.stringify({ fields });
+                    break;
+                }
+                case "binary": {
+                    finalBody = JSON.stringify(binaryFile || {});
+                    break;
+                }
                 default:
-                    finalBody = '';
+                    finalBody = "";
             }
+
             const result = await ExecuteRequest(
                 method,
                 finalUrl,
@@ -517,12 +731,18 @@ function RequestView({ request }) {
         setResponseData(result);
         let contentType = "";
         if (typeof result.headers === "object") {
-            contentType = result.headers["content-type"] || result.headers["Content-Type"] || "";
+            contentType =
+                result.headers["content-type"] ||
+                result.headers["Content-Type"] ||
+                "";
             setResponseHeaders(JSON.stringify(result.headers, null, 2));
         } else if (typeof result.headers === "string") {
             try {
                 const parsedHeaders = JSON.parse(result.headers);
-                contentType = parsedHeaders["content-type"] || parsedHeaders["Content-Type"] || "";
+                contentType =
+                    parsedHeaders["content-type"] ||
+                    parsedHeaders["Content-Type"] ||
+                    "";
                 setResponseHeaders(JSON.stringify(parsedHeaders, null, 2));
             } catch {
                 setResponseHeaders(result.headers || "");
@@ -531,7 +751,11 @@ function RequestView({ request }) {
             setResponseHeaders(result.headers?.toString() || "");
         }
         setResponseContentType(contentType);
-        const bodyString = typeof result.body === "string" ? result.body : JSON.stringify(result.body);
+
+        const bodyString =
+            typeof result.body === "string"
+                ? result.body
+                : JSON.stringify(result.body);
         const formatted = await formatCode(bodyString, contentType);
         if (formatted !== responseBody) {
             setResponseBody(formatted);
@@ -544,7 +768,8 @@ function RequestView({ request }) {
             newData[index][field] = value;
             setDataArray(newData);
         };
-        const addRow = () => setDataArray([...dataArray, { key: "", value: "" }]);
+        const addRow = () =>
+            setDataArray([...dataArray, { key: "", value: "" }]);
         const removeRow = (index) => {
             const newData = [...dataArray];
             newData.splice(index, 1);
@@ -555,8 +780,12 @@ function RequestView({ request }) {
                 <table className="w-full text-sm mb-2">
                     <thead>
                     <tr>
-                        <th className="border-b border-gray-700 p-2 text-left">Key</th>
-                        <th className="border-b border-gray-700 p-2 text-left">Value</th>
+                        <th className="border-b border-gray-700 p-2 text-left">
+                            Key
+                        </th>
+                        <th className="border-b border-gray-700 p-2 text-left">
+                            Value
+                        </th>
                         <th className="border-b border-gray-700 p-2"></th>
                     </tr>
                     </thead>
@@ -567,7 +796,9 @@ function RequestView({ request }) {
                                 <Input
                                     type="text"
                                     value={row.key}
-                                    onChange={e => handleChange(i, "key", e.target.value)}
+                                    onChange={(e) =>
+                                        handleChange(i, "key", e.target.value)
+                                    }
                                     className="bg-gray-800 border-gray-700 text-white"
                                 />
                             </td>
@@ -575,9 +806,148 @@ function RequestView({ request }) {
                                 <Input
                                     type="text"
                                     value={row.value}
-                                    onChange={e => handleChange(i, "value", e.target.value)}
+                                    onChange={(e) =>
+                                        handleChange(i, "value", e.target.value)
+                                    }
                                     className="bg-gray-800 border-gray-700 text-white"
                                 />
+                            </td>
+                            <td className="border-b border-gray-700 p-2">
+                                <button
+                                    onClick={() => removeRow(i)}
+                                    className="text-red-400 hover:text-red-500"
+                                >
+                                    Remove
+                                </button>
+                            </td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+                <button
+                    onClick={addRow}
+                    className="bg-gray-700 px-2 py-1 rounded hover:bg-gray-600 transition"
+                >
+                    + Add
+                </button>
+            </div>
+        );
+    };
+
+    const renderFormDataTable = () => {
+        const items = formDataItems || [];
+        const setItems = setFormDataItems;
+
+        const handleChange = (idx, patch) => {
+            const next = items.map((row, i) =>
+                i === idx ? { ...row, ...patch } : row
+            );
+            setItems(next);
+        };
+
+        const addRow = () =>
+            setItems([...items, { key: "", type: "text", value: "" }]);
+
+        const removeRow = (idx) => {
+            const next = items.slice();
+            next.splice(idx, 1);
+            setItems(
+                next.length ? next : [{ key: "", type: "text", value: "" }]
+            );
+        };
+
+        const handleFile = (idx, file) => {
+            if (!file) {
+                handleChange(idx, {
+                    type: "file",
+                    filename: "",
+                    mimeType: "",
+                    dataBase64: "",
+                });
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+                const res = reader.result || "";
+                const base64 =
+                    typeof res === "string" ? res.split(",")[1] || "" : "";
+                handleChange(idx, {
+                    type: "file",
+                    filename: file.name,
+                    mimeType: file.type || "application/octet-stream",
+                    dataBase64: base64,
+                });
+            };
+            reader.readAsDataURL(file);
+        };
+
+        return (
+            <div>
+                <table className="w-full text-sm mb-2">
+                    <thead>
+                    <tr>
+                        <th className="border-b border-gray-700 p-2 text-left">
+                            Key
+                        </th>
+                        <th className="border-b border-gray-700 p-2 text-left">
+                            Type
+                        </th>
+                        <th className="border-b border-gray-700 p-2 text-left">
+                            Value / File
+                        </th>
+                        <th className="border-b border-gray-700 p-2"></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {items.map((row, i) => (
+                        <tr key={i}>
+                            <td className="border-b border-gray-700 p-2">
+                                <Input
+                                    type="text"
+                                    value={row.key}
+                                    onChange={(e) =>
+                                        handleChange(i, { key: e.target.value })
+                                    }
+                                    className="bg-gray-800 border-gray-700 text-white"
+                                />
+                            </td>
+                            <td className="border-b border-gray-700 p-2">
+                                <select
+                                    value={row.type}
+                                    onChange={(e) =>
+                                        handleChange(i, { type: e.target.value })
+                                    }
+                                    className="bg-gray-800 text-white rounded px-2 py-1"
+                                >
+                                    <option value="text">Text</option>
+                                    <option value="file">File</option>
+                                </select>
+                            </td>
+                            <td className="border-b border-gray-700 p-2">
+                                {row.type === "file" ? (
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="file"
+                                            onChange={(e) =>
+                                                handleFile(i, e.target.files?.[0])
+                                            }
+                                        />
+                                        {row.filename ? (
+                                            <span className="text-gray-400 text-xs">
+                          {row.filename} ({row.mimeType || "type"})
+                        </span>
+                                        ) : null}
+                                    </div>
+                                ) : (
+                                    <Input
+                                        type="text"
+                                        value={row.value}
+                                        onChange={(e) =>
+                                            handleChange(i, { value: e.target.value })
+                                        }
+                                        className="bg-gray-800 border-gray-700 text-white"
+                                    />
+                                )}
                             </td>
                             <td className="border-b border-gray-700 p-2">
                                 <button
@@ -604,29 +974,66 @@ function RequestView({ request }) {
     const prefillContentTypeHeader = (newType, newFormat) => {
         const contentType = (() => {
             if (newType === "graphql") return "application/json";
+            if (newType === "urlencoded")
+                return "application/x-www-form-urlencoded";
+            if (newType === "binary")
+                return binaryFile?.mimeType || "application/octet-stream";
             if (newType === "raw") {
                 switch (newFormat) {
-                    case "JSON": return "application/json";
-                    case "JavaScript": return "application/javascript";
-                    case "HTML": return "text/html";
-                    case "XML": return "application/xml";
+                    case "JSON":
+                        return "application/json";
+                    case "JavaScript":
+                        return "application/javascript";
+                    case "HTML":
+                        return "text/html";
+                    case "XML":
+                        return "application/xml";
                     case "Text":
-                    default: return "text/plain";
+                    default:
+                        return "text/plain";
                 }
             }
             return undefined;
         })();
+
+        // Do not set Content-Type for formdata
+        if (newType === "formdata") {
+            if (headerType === "raw") {
+                let headersObj = {};
+                try {
+                    headersObj = headersRaw ? JSON.parse(headersRaw) : {};
+                } catch {
+                    headersObj = {};
+                }
+                for (const k of Object.keys(headersObj)) {
+                    if (k.toLowerCase() === "content-type") {
+                        delete headersObj[k];
+                    }
+                }
+                setHeadersRaw(JSON.stringify(headersObj, null, 2));
+            } else if (headerType === "keyvalue") {
+                const newKV = (headersKV || []).filter(
+                    (h) => h.key.toLowerCase() !== "content-type"
+                );
+                setHeadersKV(newKV.length ? newKV : [{ key: "", value: "" }]);
+            }
+            return;
+        }
+
         if (!contentType) return;
+
         if (headerType === "raw") {
             let headersObj = {};
             try {
                 headersObj = headersRaw ? JSON.parse(headersRaw) : {};
-            } catch { headersObj = {}; }
+            } catch {
+                headersObj = {};
+            }
             headersObj["Content-Type"] = contentType;
             setHeadersRaw(JSON.stringify(headersObj, null, 2));
         } else if (headerType === "keyvalue") {
             let found = false;
-            const newKV = headersKV.map(h => {
+            const newKV = (headersKV || []).map((h) => {
                 if (h.key.toLowerCase() === "content-type") {
                     found = true;
                     return { key: "Content-Type", value: contentType };
@@ -644,12 +1051,17 @@ function RequestView({ request }) {
         if (bodyType === "graphql") return [javascript()];
         if (bodyType === "raw") {
             switch (bodyFormat) {
-                case "JSON": return [json()];
-                case "JavaScript": return [javascript()];
-                case "HTML": return [html()];
-                case "XML": return [xml()];
+                case "JSON":
+                    return [json()];
+                case "JavaScript":
+                    return [javascript()];
+                case "HTML":
+                    return [html()];
+                case "XML":
+                    return [xml()];
                 case "Text":
-                default: return [];
+                default:
+                    return [];
             }
         }
         return [];
@@ -663,7 +1075,7 @@ function RequestView({ request }) {
         if (bodyType === "raw") {
             prefillContentTypeHeader(bodyType, bodyFormat);
         }
-    }, [bodyFormat]);
+    }, [bodyFormat, binaryFile?.mimeType]);
 
     return (
         <div className="request-view flex flex-col max-h-[90vh] overflow-hidden p-2 rounded-lg shadow-lg w-full">
@@ -675,25 +1087,31 @@ function RequestView({ request }) {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent>
                     <div className="m-2">
-                        <CommandDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} title="Save to Collection" description="Choose a collection to save this request to.">
+                        <CommandDialog
+                            open={isDialogOpen}
+                            onOpenChange={setIsDialogOpen}
+                            title="Save to Collection"
+                            description="Choose a collection to save this request to."
+                        >
                             <CommandInput placeholder="Search collections..." />
                             {renderCollectionsTab()}
                         </CommandDialog>
                     </div>
-                    <DialogFooter>
-                    </DialogFooter>
+                    <DialogFooter></DialogFooter>
                 </DialogContent>
             </Dialog>
             <div className="flex-none flex justify-between items-center">
                 <div className="flex flex-row">
-                    <h2 className="text-sm mb-4 text-slate-400">{collectionName}</h2>
+                    <h2 className="text-sm mb-4 text-slate-400">
+                        {collectionName}
+                    </h2>
                     <span className="mr-1 ml-1 mb-4 text-slate-200">/</span>
                     <h2
                         className="text-sm mb-4"
                         contentEditable
                         autoCorrect="off"
                         spellCheck="false"
-                        onBlur={e => setName(e.target.textContent || name)}
+                        onBlur={(e) => setName(e.target.textContent || name)}
                     >
                         {name}
                     </h2>
@@ -712,12 +1130,20 @@ function RequestView({ request }) {
                 <div className="flex space-x-3 mb-4 w-full mt-1">
                     <select
                         value={method}
-                        onChange={e => setMethod(e.target.value)}
+                        onChange={(e) => setMethod(e.target.value)}
                         className={`border border-gray-700 rounded px-2 py-1 ${
                             methodColourMap.get(method) || "text-white"
                         }`}
                     >
-                        {["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"].map(m => (
+                        {[
+                            "GET",
+                            "POST",
+                            "PUT",
+                            "DELETE",
+                            "PATCH",
+                            "HEAD",
+                            "OPTIONS",
+                        ].map((m) => (
                             <option key={m} value={m} className={methodColourMap.get(m)}>
                                 {m}
                             </option>
@@ -726,7 +1152,7 @@ function RequestView({ request }) {
                     <EnvarSupportedInput
                         type="text"
                         value={url}
-                        onChange={e => setUrl(e.target.value)}
+                        onChange={(e) => setUrl(e.target.value)}
                         placeholder="Enter request URL"
                         className="flex-grow border border-gray-700 rounded px-3 py-1"
                     />
@@ -743,7 +1169,9 @@ function RequestView({ request }) {
                 <button
                     onClick={() => setActiveTab("headers")}
                     className={`px-4 py-2 mr-2 focus:outline-none ${
-                        activeTab === "headers" ? "border-b-2 border-blue-500" : "text-gray-400"
+                        activeTab === "headers"
+                            ? "border-b-2 border-blue-500"
+                            : "text-gray-400"
                     }`}
                 >
                     Headers
@@ -751,7 +1179,9 @@ function RequestView({ request }) {
                 <button
                     onClick={() => setActiveTab("authorization")}
                     className={`px-4 py-2 mr-2 focus:outline-none ${
-                        activeTab === "authorization" ? "border-b-2 border-blue-500" : "text-gray-400"
+                        activeTab === "authorization"
+                            ? "border-b-2 border-blue-500"
+                            : "text-gray-400"
                     }`}
                 >
                     Authorization
@@ -759,7 +1189,9 @@ function RequestView({ request }) {
                 <button
                     onClick={() => setActiveTab("body")}
                     className={`px-4 py-2 focus:outline-none ${
-                        activeTab === "body" ? "border-b-2 border-blue-500" : "text-gray-400"
+                        activeTab === "body"
+                            ? "border-b-2 border-blue-500"
+                            : "text-gray-400"
                     }`}
                 >
                     Body
@@ -771,7 +1203,7 @@ function RequestView({ request }) {
                     <div className="flex justify-between items-center mb-2">
                         <select
                             value={headerType}
-                            onChange={e => setHeaderType(e.target.value)}
+                            onChange={(e) => setHeaderType(e.target.value)}
                             className="border border-gray-700 text-white rounded px-2 py-1"
                         >
                             <option value="none">None</option>
@@ -792,10 +1224,11 @@ function RequestView({ request }) {
                             extensions={[json()]}
                             theme={copilot}
                             className="border border-gray-700 rounded w-full"
-                            onChange={value => setHeadersRaw(value)}
+                            onChange={(value) => setHeadersRaw(value)}
                         />
                     )}
-                    {headerType === "keyvalue" && renderKeyValueTable(headersKV, setHeadersKV)}
+                    {headerType === "keyvalue" &&
+                        renderKeyValueTable(headersKV, setHeadersKV)}
                 </div>
             )}
             {activeTab === "authorization" && (
@@ -863,10 +1296,19 @@ function RequestView({ request }) {
                     <div className="flex flex-wrap gap-4 mb-4">
                         {[
                             { label: "None", value: "none" },
-                            { label: "Raw (JSON)", value: "raw" },
-                            { label: "GraphQL", value: "graphql" }
-                        ].map(option => (
-                            <label key={option.value} className="flex items-center space-x-1">
+                            { label: "Raw", value: "raw" },
+                            { label: "GraphQL", value: "graphql" },
+                            { label: "Form-Data", value: "formdata" },
+                            {
+                                label: "x-www-form-urlencoded",
+                                value: "urlencoded",
+                            },
+                            { label: "Binary", value: "binary" },
+                        ].map((option) => (
+                            <label
+                                key={option.value}
+                                className="flex items-center space-x-1"
+                            >
                                 <input
                                     type="radio"
                                     value={option.value}
@@ -878,26 +1320,33 @@ function RequestView({ request }) {
                             </label>
                         ))}
                     </div>
+
                     {bodyType === "raw" && (
                         <div>
                             <div className="flex items-center mb-2 space-x-2">
                                 <span>Language:</span>
                                 <select
                                     value={bodyFormat}
-                                    onChange={e => setBodyFormat(e.target.value)}
+                                    onChange={(e) => setBodyFormat(e.target.value)}
                                     className="bg-gray-800 text-white rounded px-2 py-1"
                                 >
-                                    {["Text", "JavaScript", "JSON", "HTML", "XML"].map(lang => (
-                                        <option key={lang} value={lang}>
-                                            {lang}
-                                        </option>
-                                    ))}
+                                    {["Text", "JavaScript", "JSON", "HTML", "XML"].map(
+                                        (lang) => (
+                                            <option key={lang} value={lang}>
+                                                {lang}
+                                            </option>
+                                        )
+                                    )}
                                 </select>
                             </div>
                             <div className="flex items-center mb-2 justify-end">
                                 <button
                                     onClick={async () => {
-                                        const formatted = await formatCode(bodyRaw, getDefaultContentType(), bodyFormat);
+                                        const formatted = await formatCode(
+                                            bodyRaw,
+                                            getDefaultContentType(),
+                                            bodyFormat
+                                        );
                                         if (formatted !== bodyRaw) {
                                             setBodyRaw(formatted);
                                         }
@@ -924,6 +1373,7 @@ function RequestView({ request }) {
                             </div>
                         </div>
                     )}
+
                     {bodyType === "graphql" && (
                         <div className="space-y-4">
                             <div>
@@ -935,7 +1385,7 @@ function RequestView({ request }) {
                                         extensions={[javascript()]}
                                         theme={copilot}
                                         className="border border-gray-700 rounded w-full"
-                                        onChange={value => setGraphqlQuery(value)}
+                                        onChange={(value) => setGraphqlQuery(value)}
                                         basicSetup={{
                                             lineNumbers: true,
                                             foldGutter: false,
@@ -945,7 +1395,9 @@ function RequestView({ request }) {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-sm text-gray-300">Variables (JSON)</p>
+                                <p className="text-sm text-gray-300">
+                                    Variables (JSON)
+                                </p>
                                 <div className="max-h-48 overflow-auto">
                                     <CodeMirror
                                         value={graphqlVariables}
@@ -953,7 +1405,7 @@ function RequestView({ request }) {
                                         extensions={[json()]}
                                         theme={copilot}
                                         className="border border-gray-700 rounded w-full"
-                                        onChange={value => setGraphqlVariables(value)}
+                                        onChange={(value) => setGraphqlVariables(value)}
                                         basicSetup={{
                                             lineNumbers: true,
                                             foldGutter: false,
@@ -964,8 +1416,58 @@ function RequestView({ request }) {
                             </div>
                         </div>
                     )}
+
+                    {bodyType === "formdata" && (
+                        <div className="space-y-2">{renderFormDataTable()}</div>
+                    )}
+
+                    {bodyType === "urlencoded" && (
+                        <div className="space-y-2">
+                            {renderKeyValueTable(
+                                urlencodedItems,
+                                setUrlencodedItems
+                            )}
+                        </div>
+                    )}
+
+                    {bodyType === "binary" && (
+                        <div className="space-y-2">
+                            <input
+                                type="file"
+                                onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (!f) {
+                                        setBinaryFile(null);
+                                        return;
+                                    }
+                                    const r = new FileReader();
+                                    r.onload = () => {
+                                        const res = r.result || "";
+                                        const base64 =
+                                            typeof res === "string"
+                                                ? res.split(",")[1] || ""
+                                                : "";
+                                        setBinaryFile({
+                                            filename: f.name,
+                                            mimeType:
+                                                f.type || "application/octet-stream",
+                                            dataBase64: base64,
+                                        });
+                                    };
+                                    r.readAsDataURL(f);
+                                }}
+                            />
+                            {binaryFile?.filename ? (
+                                <div className="text-xs text-gray-400">
+                                    Selected: {binaryFile.filename} (
+                                    {binaryFile.mimeType})
+                                </div>
+                            ) : null}
+                        </div>
+                    )}
                 </div>
             )}
+
             {responseData && (
                 <div className="flex flex-col rounded-lg shadow-md w-full flex-1 overflow-hidden">
                     <div className="flex-none border-b border-gray-700 flex items-center justify-between">
@@ -974,7 +1476,9 @@ function RequestView({ request }) {
                                 <button
                                     onClick={() => setResponseTab("body")}
                                     className={`px-4 py-2 -mb-px ${
-                                        responseTab === "body" ? "border-b-2 border-blue-500" : "text-gray-400"
+                                        responseTab === "body"
+                                            ? "border-b-2 border-blue-500"
+                                            : "text-gray-400"
                                     }`}
                                 >
                                     Body
@@ -982,40 +1486,53 @@ function RequestView({ request }) {
                                 <button
                                     onClick={() => setResponseTab("headers")}
                                     className={`px-4 py-2 -mb-px ${
-                                        responseTab === "headers" ? "border-b-2 border-blue-500" : "text-gray-400"
+                                        responseTab === "headers"
+                                            ? "border-b-2 border-blue-500"
+                                            : "text-gray-400"
                                     }`}
                                 >
                                     Headers
                                 </button>
                             </div>
                             <div className="flex items-center space-x-4 text-sm">
-                                <span
-                                    className={`px-2 py-1 rounded ${responseData.statusCode >= 400 ? 'bg-red-500/20' : 'bg-green-500/20'}`}>
-                                    <strong>Status:</strong> {responseData.statusCode}
-                                </span>
+                <span
+                    className={`px-2 py-1 rounded ${
+                        responseData.statusCode >= 400
+                            ? "bg-red-500/20"
+                            : "bg-green-500/20"
+                    }`}
+                >
+                  <strong>Status:</strong> {responseData.statusCode}
+                </span>
                                 <span className="text-gray-400">
-                                    <strong>Time:</strong> {responseData.runtimeMS}ms
-                                </span>
+                  <strong>Time:</strong> {responseData.runtimeMS}ms
+                </span>
                                 <span className="text-gray-400">
-                                    <strong>Size:</strong> {(new Blob([responseBody]).size / 1024).toFixed(2)} KB
-                                </span>
+                  <strong>Size:</strong>{" "}
+                                    {(new Blob([responseBody]).size / 1024).toFixed(2)} KB
+                </span>
                             </div>
                         </div>
                     </div>
                     {responseTab === "body" ? (
                         <div className="flex-1 flex flex-col overflow-hidden">
-                                                            <div className="flex-none border-b border-gray-700 flex items-center justify-between">
-                                    {responseContentType && (
-                                        <div className="text-xs text-gray-400 px-4 py-2">
-                                            {responseContentType[0]?.split(';')[0]}
-                                        </div>
-                                    )}
-                                </div>
+                            <div className="flex-none border-b border-gray-700 flex items-center justify-between">
+                                {responseContentType && (
+                                    <div className="text-xs text-gray-400 px-4 py-2">
+                                        {responseContentType?.split?.(";")?.[0]}
+                                    </div>
+                                )}
+                            </div>
                             <div className="flex-1 p-3 overflow-auto">
                                 <CodeMirror
                                     value={responseBody}
                                     height="100%"
-                                    extensions={[...getLanguageExtension(responseContentType, responseBody)]}
+                                    extensions={[
+                                        ...getLanguageExtension(
+                                            responseContentType,
+                                            responseBody
+                                        ),
+                                    ]}
                                     theme={copilot}
                                     className="h-full w-full"
                                     readOnly
