@@ -64,6 +64,7 @@ func (s *EnvarService) InitEnvarWatch(ctx context.Context) {
 
 	<-ctx.Done()
 }
+
 func (s *EnvarService) ScanEnvars() json.RawMessage {
 
 	envarList := []EnvarJSON{}
@@ -91,8 +92,16 @@ func (s *EnvarService) ScanEnvars() json.RawMessage {
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			line := scanner.Text()
-			lineLen := len(line)
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+
 			splitIndex := strings.Index(line, "=")
+			if splitIndex == -1 {
+				continue
+			}
+			lineLen := len(line)
 			key := line[0:splitIndex]
 			value := line[splitIndex+1 : lineLen]
 			vars[key] = value
