@@ -14,13 +14,15 @@ type UserService struct {
 }
 
 type Keybind struct {
-	Command *string `json:"command"`
-	Bind    *string `json:"bind"`
+	Command    *string `json:"command"`
+	Bind       *string `json:"bind"`
+	PrettyName *string `json:"prettyName"`
 }
 
 type DbKeybind struct {
-	command sql.NullString
-	bind    sql.NullString
+	command     sql.NullString
+	bind        sql.NullString
+	pretty_name sql.NullString
 }
 
 func (s *UserService) FetchUserKeybinds() json.RawMessage {
@@ -34,15 +36,16 @@ func (s *UserService) FetchUserKeybinds() json.RawMessage {
 
 	for rows.Next() {
 		var dbK DbKeybind
-		err := rows.Scan(&dbK.command, &dbK.bind)
+		err := rows.Scan(&dbK.command, &dbK.bind, &dbK.pretty_name)
 		if err != nil {
 			fmt.Println("Error scanning rows", err)
 			continue
 		}
 
 		keybind := Keybind{
-			Command: nullStringToPointer(dbK.command),
-			Bind:    nullStringToPointer(dbK.bind),
+			Command:    nullStringToPointer(dbK.command),
+			Bind:       nullStringToPointer(dbK.bind),
+			PrettyName: nullStringToPointer(dbK.pretty_name),
 		}
 
 		keybinds = append(keybinds, keybind)

@@ -2,9 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
     Dialog,
     DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +10,6 @@ import {
     LoadUserSettings,
     SaveUserSettings,
     FetchUserKeybinds,
-    UpdateUserKeybinds
 } from "../../bindings/github.com/D-Elbel/curlew/userservice.js";
 import { useHotkeys } from "@/services/HotkeysContext.jsx";
 

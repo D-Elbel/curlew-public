@@ -43,15 +43,6 @@ export function SaveUserSettings(settings) {
     return $resultPromise;
 }
 
-/**
- * @param {$models.Keybind[]} keybinds
- * @returns {Promise<void> & { cancel(): void }}
- */
-export function UpdateUserKeybinds(keybinds) {
-    let $resultPromise = /** @type {any} */($Call.ByID(935276461, keybinds));
-    return $resultPromise;
-}
-
 // Private type creation functions
 const $$createType0 = $models.UserSettings.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);

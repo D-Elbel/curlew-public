@@ -55,48 +55,6 @@ export class Collection {
     }
 }
 
-export class Keybind {
-    /**
-     * Creates a new Keybind instance.
-     * @param {Partial<Keybind>} [$$source = {}] - The source object to create the Keybind.
-     */
-    constructor($$source = {}) {
-        if (!("command" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["command"] = null;
-        }
-        if (!("bind" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["bind"] = null;
-        }
-        if (!("prettyName" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["prettyName"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Keybind instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {Keybind}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new Keybind(/** @type {Partial<Keybind>} */($$parsedSource));
-    }
-}
-
 export class Request {
     /**
      * Creates a new Request instance.
