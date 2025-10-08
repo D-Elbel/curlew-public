@@ -684,6 +684,9 @@ export default function RequestListSidebar({
         } else if (draggedItemType === "collection") {
             const collectionId = active.data.current.collectionId;
             const newParentId = over.id === "__UNCATEGORIZED__" ? null : over.id;
+            if (newParentId && newParentId === collectionId) {
+                return;
+            }
             try {
                 await UpdateCollectionParent(collectionId, newParentId);
                 await loadAll();

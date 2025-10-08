@@ -5,12 +5,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/wailsapp/wails/v3/pkg/application"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type RequestCRUDService struct {
@@ -116,6 +117,8 @@ func (s *RequestCRUDService) DeleteRequest(id int) error {
 
 // TODO: lock down response object, replace "" with nulls etc
 func (s *RequestCRUDService) GetAllRequestsList() []Request {
+	s.normalizeRequestSortOrder()
+
 	var requests []Request
 	rows, err := s.db.Query("SELECT id, collection_id, name, description, method, url, sort_order FROM requests ORDER BY collection_id, COALESCE(sort_order, id)")
 
@@ -553,6 +556,30 @@ func (s *RequestCRUDService) CreateCollection(name string, description string, p
 }
 
 func (s *RequestCRUDService) UpdateCollectionParent(collectionId string, parentId *string) error {
+	if parentId != nil && *parentId == collectionId {
+		return fmt.Errorf("a collection cannot be its own parent")
+	}
+
+	if parentId != nil {
+		var exists bool
+		if err := s.db.QueryRow("SELECT EXISTS(SELECT 1 FROM collections WHERE id = ?)", *parentId).Scan(&exists); err != nil {
+			fmt.Println("Failed to validate parent collection:", err)
+			return err
+		}
+		if !exists {
+			return fmt.Errorf("parent collection %s does not exist", *parentId)
+		}
+
+		cycle, err := s.createsCollectionCycle(collectionId, *parentId)
+		if err != nil {
+			fmt.Println("Failed to validate collection hierarchy:", err)
+			return err
+		}
+		if cycle {
+			return fmt.Errorf("cannot move collection: circular hierarchy detected")
+		}
+	}
+
 	_, err := s.db.Exec(
 		"UPDATE collections SET parent_collection = ? WHERE id = ?",
 		parentId,
@@ -582,6 +609,8 @@ func (s *RequestCRUDService) DeleteCollection(collectionId string) error {
 }
 
 func (s *RequestCRUDService) GetAllCollections() []Collection {
+	s.sanitizeCollectionParents()
+
 	var collections []Collection
 	rows, err := s.db.Query("SELECT id, name, parent_collection FROM collections")
 
@@ -598,11 +627,105 @@ func (s *RequestCRUDService) GetAllCollections() []Collection {
 			fmt.Println("Failed to scan row to collection", err)
 			continue
 		}
+		if parentId.Valid && parentId.String == c.ID {
+			parentId.Valid = false
+		}
 		c.ParentCollectionId = nullStringToPointer(parentId)
 		collections = append(collections, c)
 	}
 
 	return collections
+}
+
+func (s *RequestCRUDService) sanitizeCollectionParents() {
+	if s.db == nil {
+		return
+	}
+	if _, err := s.db.Exec("UPDATE collections SET parent_collection = NULL WHERE parent_collection = id"); err != nil {
+		fmt.Println("Failed to sanitize self-referential collections:", err)
+	}
+}
+
+func (s *RequestCRUDService) normalizeRequestSortOrder() {
+	if s.db == nil {
+		return
+	}
+
+	rows, err := s.db.Query("SELECT DISTINCT collection_id FROM requests")
+	if err != nil {
+		fmt.Println("Failed to gather collections for sort normalization:", err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var collectionID string
+		if err := rows.Scan(&collectionID); err != nil {
+			fmt.Println("Failed to scan collection id during sort normalization:", err)
+			continue
+		}
+
+		reqRows, err := s.db.Query(`
+			SELECT id, sort_order
+			FROM requests
+			WHERE collection_id = ?
+			ORDER BY CASE WHEN sort_order IS NULL THEN 1 ELSE 0 END, sort_order, id
+		`, collectionID)
+		if err != nil {
+			fmt.Println("Failed to load requests for normalization:", err)
+			continue
+		}
+
+		index := 0
+		for reqRows.Next() {
+			var requestID int
+			var sortOrder sql.NullInt64
+			if err := reqRows.Scan(&requestID, &sortOrder); err != nil {
+				fmt.Println("Failed to scan request during normalization:", err)
+				continue
+			}
+
+			if !sortOrder.Valid || int(sortOrder.Int64) != index {
+				if _, err := s.db.Exec("UPDATE requests SET sort_order = ? WHERE id = ?", index, requestID); err != nil {
+					fmt.Println("Failed to normalize request sort order:", err)
+					continue
+				}
+			}
+			index++
+		}
+		reqRows.Close()
+	}
+}
+
+func (s *RequestCRUDService) createsCollectionCycle(collectionId string, newParentId string) (bool, error) {
+	current := newParentId
+	for current != "" {
+		if current == collectionId {
+			return true, nil
+		}
+
+		var parent sql.NullString
+		err := s.db.QueryRow("SELECT parent_collection FROM collections WHERE id = ?", current).Scan(&parent)
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		if !parent.Valid {
+			return false, nil
+		}
+
+		if parent.String == current {
+			if _, err := s.db.Exec("UPDATE collections SET parent_collection = NULL WHERE id = ?", current); err != nil {
+				fmt.Println("Failed to repair self-referential parent during cycle check:", err)
+			}
+			return false, nil
+		}
+
+		current = parent.String
+	}
+	return false, nil
 }
 
 func emptyStringToNullString(s string) sql.NullString {
