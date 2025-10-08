@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from "react";
-import {
-    Dialog,
-    DialogContent,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import {
+    Select,
+    SelectTrigger,
+    SelectValue,
+    SelectContent,
+    SelectItem,
+} from "@/components/ui/select";
 import {
     LoadUserSettings,
     SaveUserSettings,
     FetchUserKeybinds,
 } from "../../bindings/github.com/D-Elbel/curlew/userservice.js";
 import { useHotkeys } from "@/services/HotkeysContext.jsx";
+import { useEnvarStore } from "@/stores/envarStore";
 
 export default function SettingsModal({ open, onOpenChange }) {
     const [activeSection, setActiveSection] = useState("general");
@@ -22,6 +27,10 @@ export default function SettingsModal({ open, onOpenChange }) {
     });
     const [keybinds, setKeybinds] = useState([]);
     const { reloadHotkeys } = useHotkeys();
+    const envs = useEnvarStore((state) => state.environmentVariables);
+    const NO_ENV_VALUE = "__none__";
+    const environmentNames = envs.map((env) => env.env).filter(Boolean);
+    const isDefaultEnvMissing = settings.defaultEnv && !environmentNames.includes(settings.defaultEnv);
 
     useEffect(() => {
         if (open) {
@@ -107,16 +116,34 @@ export default function SettingsModal({ open, onOpenChange }) {
                                         <label className="block text-sm font-medium mb-1">
                                             Default Environment
                                         </label>
-                                        <Input
-                                            value={settings.defaultEnv}
-                                            onChange={(e) =>
+                                        <Select
+                                            value={settings.defaultEnv || NO_ENV_VALUE}
+                                            onValueChange={(value) =>
                                                 setSettings({
                                                     ...settings,
-                                                    defaultEnv: e.target.value
+                                                    defaultEnv: value === NO_ENV_VALUE ? "" : value
                                                 })
                                             }
-                                            className="w-64"
-                                        />
+                                        >
+                                            <SelectTrigger className="w-64">
+                                                <SelectValue placeholder="Select environment" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={NO_ENV_VALUE}>
+                                                    No environment
+                                                </SelectItem>
+                                                {environmentNames.map((name) => (
+                                                    <SelectItem key={name} value={name}>
+                                                        {name}
+                                                    </SelectItem>
+                                                ))}
+                                                {isDefaultEnvMissing && (
+                                                    <SelectItem value={settings.defaultEnv}>
+                                                        {settings.defaultEnv} (missing)
+                                                    </SelectItem>
+                                                )}
+                                            </SelectContent>
+                                        </Select>
                                     </section>
 
                                     <section>
