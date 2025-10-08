@@ -14,6 +14,7 @@ import {
     LoadUserSettings,
     SaveUserSettings,
     FetchUserKeybinds,
+    UpdateUserKeybinds,
 } from "../../bindings/github.com/D-Elbel/curlew/userservice.js";
 import { useHotkeys } from "@/services/HotkeysContext.jsx";
 import { useEnvarStore } from "@/stores/envarStore";

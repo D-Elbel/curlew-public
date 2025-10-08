@@ -116,3 +116,51 @@ func (s *UserService) SaveUserSettings(settings *UserSettings) error {
 
 	return nil
 }
+
+func (s *UserService) UpdateUserKeybinds(keybinds []Keybind) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to start keybind update transaction: %w", err)
+	}
+
+	stmt, err := tx.Prepare(`
+		INSERT INTO hotkey_binds (command, bind, pretty_name)
+		VALUES (?, ?, ?)
+		ON CONFLICT(command) DO UPDATE SET
+			bind = excluded.bind,
+			pretty_name = excluded.pretty_name
+	`)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to prepare keybind upsert statement: %w", err)
+	}
+	defer stmt.Close()
+
+	for _, kb := range keybinds {
+		if kb.Command == nil || *kb.Command == "" {
+			tx.Rollback()
+			return fmt.Errorf("keybind command is required")
+		}
+
+		var bindValue interface{}
+		if kb.Bind != nil {
+			bindValue = *kb.Bind
+		}
+
+		var prettyName interface{}
+		if kb.PrettyName != nil {
+			prettyName = *kb.PrettyName
+		}
+
+		if _, err := stmt.Exec(*kb.Command, bindValue, prettyName); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to upsert keybind %s: %w", *kb.Command, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit keybind updates: %w", err)
+	}
+
+	return nil
+}
