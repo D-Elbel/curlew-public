@@ -4,5 +4,6 @@ CREATE TABLE IF NOT EXISTS responses (
     headers TEXT,
     body TEXT,
     runtime_ms INTEGER,
-    request_id INTEGER
+    request_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

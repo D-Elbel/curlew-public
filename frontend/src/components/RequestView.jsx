@@ -1,11 +1,11 @@
 // RequestView.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
 import { html } from "@codemirror/lang-html";
 import { xml } from "@codemirror/lang-xml";
 import { javascript } from "@codemirror/lang-javascript";
-import { ExecuteRequest, GetRequest } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js";
+import { ExecuteRequest, GetRequest, GetResponseHistory } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js";
 import { copilot } from "@uiw/codemirror-theme-copilot"
 import { Input } from "@/components/ui/input.js";
 import { EnvarSupportedInput } from "@/components/EnvarSupportedInput.jsx";
@@ -119,6 +119,7 @@ function RequestView({ request }) {
     const [responseContentType, setResponseContentType] = useState("");
     const [fullRequest, setFullRequest] = useState(null);
     const [responseTab, setResponseTab] = useState("body");
+    const [responseHistory, setResponseHistory] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const [authType, setAuthType] = useState("none");
@@ -135,6 +136,31 @@ function RequestView({ request }) {
     const isInitialAutosave = useRef(true);
     const saveTimeout = useRef(null);
     const isSyncingFromSave = useRef(false);
+    const resolvedRequestId = typeof fullRequest?.id === "number"
+        ? fullRequest.id
+        : typeof request?.id === "number"
+            ? request.id
+            : null;
+    const latestResponse = responseData || (responseHistory.length > 0 ? responseHistory[0] : null);
+    const latestResponseSizeKb =
+        latestResponse && typeof latestResponse.body === "string"
+            ? (new Blob([latestResponse.body]).size / 1024).toFixed(2)
+            : null;
+
+    const loadResponseHistory = useCallback(async (id) => {
+        if (!id) {
+            setResponseHistory([]);
+            return;
+        }
+
+        try {
+            const history = await GetResponseHistory(id);
+            console.log(history);
+            setResponseHistory(Array.isArray(history) ? history : []);
+        } catch (error) {
+            console.error("Failed to load response history:", error);
+        }
+    }, []);
 
     useEffect(() => {
         const fn = (e) => {
@@ -146,7 +172,9 @@ function RequestView({ request }) {
     }, [hotkeysMap.HANDLE_ENTITY_SAVE]);
 
     useEffect(() => {
-        if (!request?.id || request.isNew) return;
+        if (!request?.id || request.isNew) {
+            return;
+        }
         (async () => {
             try {
                 const fetched = await GetRequest(request.id);
@@ -157,6 +185,25 @@ function RequestView({ request }) {
             }
         })();
     }, [request?.id, request.isNew]);
+
+    useEffect(() => {
+        if (resolvedRequestId) {
+            loadResponseHistory(resolvedRequestId);
+        } else {
+            setResponseHistory([]);
+        }
+    }, [resolvedRequestId, loadResponseHistory]);
+
+    useEffect(() => {
+        if (!responseData && responseHistory.length > 0) {
+            setResponseTab((prev) => (prev === "history" ? prev : "history"));
+            return;
+        }
+
+        if (responseHistory.length === 0 && responseData) {
+            setResponseTab((prev) => (prev === "history" ? "body" : prev));
+        }
+    }, [responseData, responseHistory.length]);
 
     useEffect(() => {
         const syncFullRequest = async () => {
@@ -709,6 +756,7 @@ function RequestView({ request }) {
             }
 
             const result = await ExecuteRequest(
+                resolvedRequestId || 0,
                 method,
                 finalUrl,
                 finalHeaders,
@@ -718,6 +766,9 @@ function RequestView({ request }) {
                 auth
             );
             await handleResponse(result);
+            if (resolvedRequestId) {
+                await loadResponseHistory(resolvedRequestId);
+            }
         } catch (error) {
             console.error("Error executing request:", error);
             setErrorMessage(error.toString());
@@ -728,34 +779,41 @@ function RequestView({ request }) {
     };
 
     const handleResponse = async (result) => {
-        setResponseData(result);
+        const enrichedResult = {
+            ...result,
+        };
+        if (!enrichedResult.createdAt) {
+            enrichedResult.createdAt = new Date().toISOString();
+        }
+
+        setResponseData(enrichedResult);
         let contentType = "";
-        if (typeof result.headers === "object") {
+        if (typeof enrichedResult.headers === "object") {
             contentType =
-                result.headers["content-type"] ||
-                result.headers["Content-Type"] ||
+                enrichedResult.headers["content-type"] ||
+                enrichedResult.headers["Content-Type"] ||
                 "";
-            setResponseHeaders(JSON.stringify(result.headers, null, 2));
-        } else if (typeof result.headers === "string") {
+            setResponseHeaders(JSON.stringify(enrichedResult.headers, null, 2));
+        } else if (typeof enrichedResult.headers === "string") {
             try {
-                const parsedHeaders = JSON.parse(result.headers);
+                const parsedHeaders = JSON.parse(enrichedResult.headers);
                 contentType =
                     parsedHeaders["content-type"] ||
                     parsedHeaders["Content-Type"] ||
                     "";
                 setResponseHeaders(JSON.stringify(parsedHeaders, null, 2));
             } catch {
-                setResponseHeaders(result.headers || "");
+                setResponseHeaders(enrichedResult.headers || "");
             }
         } else {
-            setResponseHeaders(result.headers?.toString() || "");
+            setResponseHeaders(enrichedResult.headers?.toString() || "");
         }
         setResponseContentType(contentType);
 
         const bodyString =
-            typeof result.body === "string"
-                ? result.body
-                : JSON.stringify(result.body);
+            typeof enrichedResult.body === "string"
+                ? enrichedResult.body
+                : JSON.stringify(enrichedResult.body);
         const formatted = await formatCode(bodyString, contentType);
         if (formatted !== responseBody) {
             setResponseBody(formatted);
@@ -1468,7 +1526,7 @@ function RequestView({ request }) {
                 </div>
             )}
 
-            {responseData && (
+            {(responseData || responseHistory.length > 0) && (
                 <div className="flex flex-col rounded-lg shadow-md w-full flex-1 overflow-hidden">
                     <div className="flex-none border-b border-gray-700 flex items-center justify-between">
                         <div className="flex flex-row space-x-4 items-center justify-between w-full">
@@ -1493,28 +1551,52 @@ function RequestView({ request }) {
                                 >
                                     Headers
                                 </button>
+                                <button
+                                    onClick={() => setResponseTab("history")}
+                                    className={`px-4 py-2 -mb-px ${
+                                        responseTab === "history"
+                                            ? "border-b-2 border-blue-500"
+                                            : "text-gray-400"
+                                    }`}
+                                >
+                                    History
+                                </button>
                             </div>
                             <div className="flex items-center space-x-4 text-sm">
-                <span
-                    className={`px-2 py-1 rounded ${
-                        responseData.statusCode >= 400
-                            ? "bg-red-500/20"
-                            : "bg-green-500/20"
-                    }`}
-                >
-                  <strong>Status:</strong> {responseData.statusCode}
-                </span>
-                                <span className="text-gray-400">
-                  <strong>Time:</strong> {responseData.runtimeMS}ms
-                </span>
-                                <span className="text-gray-400">
-                  <strong>Size:</strong>{" "}
-                                    {(new Blob([responseBody]).size / 1024).toFixed(2)} KB
-                </span>
+                                {latestResponse ? (
+                                    <>
+                                        <span
+                                            className={`px-2 py-1 rounded ${
+                                                latestResponse.statusCode >= 400
+                                                    ? "bg-red-500/20"
+                                                    : "bg-green-500/20"
+                                            }`}
+                                        >
+                                            <strong>Status:</strong> {latestResponse.statusCode}
+                                        </span>
+                                        <span className="text-gray-400">
+                                            <strong>Time:</strong> {latestResponse.runtimeMS}
+                                            ms
+                                        </span>
+                                        {latestResponseSizeKb && (
+                                            <span className="text-gray-400">
+                                                <strong>Size:</strong> {latestResponseSizeKb} KB
+                                            </span>
+                                        )}
+                                        {latestResponse.createdAt && (
+                                            <span className="text-gray-500">
+                                                <strong>Received:</strong>{" "}
+                                                {new Date(latestResponse.createdAt).toLocaleString()}
+                                            </span>
+                                        )}
+                                    </>
+                                ) : (
+                                    <span className="text-gray-400">No responses yet</span>
+                                )}
                             </div>
                         </div>
                     </div>
-                    {responseTab === "body" ? (
+                    {responseTab === "body" && responseData ? (
                         <div className="flex-1 flex flex-col overflow-hidden">
                             <div className="flex-none border-b border-gray-700 flex items-center justify-between">
                                 {responseContentType && (
@@ -1544,7 +1626,8 @@ function RequestView({ request }) {
                                 />
                             </div>
                         </div>
-                    ) : (
+                    ) : null}
+                    {responseTab === "headers" && responseData ? (
                         <div className="flex-1 p-3 overflow-auto">
                             <CodeMirror
                                 value={responseHeaders}
@@ -1554,6 +1637,68 @@ function RequestView({ request }) {
                                 className="h-full w-full"
                                 readOnly
                             />
+                        </div>
+                    ) : null}
+                    {responseTab === "history" && (
+                        <div className="flex-1 p-4 overflow-auto space-y-3">
+                            {responseHistory.length === 0 ? (
+                                <div className="text-sm text-gray-400">
+                                    No responses recorded yet for this request.
+                                </div>
+                            ) : (
+                                <table className="w-full text-sm border-collapse">
+                                    <thead>
+                                        <tr className="text-xs uppercase text-gray-400">
+                                            <th className="text-left font-normal border-b border-gray-700 pb-2">
+                                                Time
+                                            </th>
+                                            <th className="text-left font-normal border-b border-gray-700 pb-2">
+                                                Status
+                                            </th>
+                                            <th className="text-left font-normal border-b border-gray-700 pb-2">
+                                                Duration
+                                            </th>
+                                            <th className="text-left font-normal border-b border-gray-700 pb-2">
+                                                Body Size
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {responseHistory.map((entry) => {
+                                            const sizeKb =
+                                                entry && typeof entry.body === "string"
+                                                    ? (new Blob([entry.body]).size / 1024).toFixed(2)
+                                                    : null;
+                                            const createdAt =
+                                                entry?.createdAt
+                                                    ? new Date(entry.createdAt).toLocaleString()
+                                                    : "Unknown";
+                                            return (
+                                                <tr key={entry.id} className="border-b border-gray-800/60">
+                                                    <td className="py-2 pr-4 text-gray-200">{createdAt}</td>
+                                                    <td className="py-2 pr-4">
+                                                        <span
+                                                            className={`px-2 py-1 rounded text-xs ${
+                                                                entry.statusCode >= 400
+                                                                    ? "bg-red-500/20 text-red-200"
+                                                                    : "bg-green-500/20 text-green-200"
+                                                            }`}
+                                                        >
+                                                            {entry.statusCode}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-2 pr-4 text-gray-300">
+                                                        {entry.runtimeMS} ms
+                                                    </td>
+                                                    <td className="py-2 pr-4 text-gray-300">
+                                                        {sizeKb ? `${sizeKb} KB` : "—"}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
                     )}
                 </div>

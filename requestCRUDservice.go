@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -44,12 +45,144 @@ type Collection struct {
 }
 
 type Response struct {
-	ID         int    `json:"id"`
-	StatusCode int    `json:"statusCode"`
-	Headers    string `json:"headers"`
-	Body       string `json:"body"`
-	RuntimeMS  int    `json:"runtimeMS"`
-	RequestID  int    `json:"requestID"`
+	ID         int        `json:"id"`
+	StatusCode int        `json:"statusCode"`
+	Headers    string     `json:"headers"`
+	Body       string     `json:"body"`
+	RuntimeMS  int        `json:"runtimeMS"`
+	RequestID  int        `json:"requestID"`
+	CreatedAt  *time.Time `json:"createdAt,omitempty"`
+}
+
+const (
+	responseHistoryTTLKey     = "response_history_ttl"
+	defaultResponseHistoryTTL = 5
+)
+
+func (s *RequestCRUDService) Init() {
+	s.ensureResponsesSchema()
+}
+
+func (s *RequestCRUDService) ensureResponsesSchema() {
+	if s.db == nil {
+		return
+	}
+
+	hasCreatedAt := false
+	rows, err := s.db.Query(`PRAGMA table_info(responses)`)
+	if err != nil {
+		fmt.Println("Failed to inspect responses schema:", err)
+	} else {
+		defer rows.Close()
+		for rows.Next() {
+			var cid int
+			var name, ctype string
+			var notnull int
+			var dfltValue sql.NullString
+			var pk int
+			if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err != nil {
+				continue
+			}
+			if name == "created_at" {
+				hasCreatedAt = true
+				break
+			}
+		}
+	}
+
+	if !hasCreatedAt {
+		if _, err := s.db.Exec(`ALTER TABLE responses ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`); err != nil {
+			fmt.Println("Failed to add created_at to responses:", err)
+		}
+	}
+
+	if _, err := s.db.Exec(
+		`INSERT INTO app_state (key, value)
+		 VALUES (?, ?)
+		 ON CONFLICT(key) DO NOTHING`,
+		responseHistoryTTLKey,
+		fmt.Sprintf("%d", defaultResponseHistoryTTL),
+	); err != nil {
+		fmt.Println("Failed to ensure response history TTL setting:", err)
+	}
+}
+
+func (s *RequestCRUDService) getResponseHistoryLimit() int {
+	if s.db == nil {
+		return defaultResponseHistoryTTL
+	}
+
+	var raw string
+	err := s.db.QueryRow(`SELECT value FROM app_state WHERE key = ?`, responseHistoryTTLKey).Scan(&raw)
+	if err == sql.ErrNoRows {
+		return defaultResponseHistoryTTL
+	}
+	if err != nil {
+		fmt.Println("Failed to load response history TTL:", err)
+		return defaultResponseHistoryTTL
+	}
+
+	val, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || val < 1 {
+		return defaultResponseHistoryTTL
+	}
+	return val
+}
+
+func (s *RequestCRUDService) logResponseHistory(requestID int, statusCode int, headers string, body string, runtimeMS int, createdAt *time.Time) {
+	if s.db == nil || requestID <= 0 {
+		return
+	}
+
+	var err error
+	if createdAt != nil {
+		_, err = s.db.Exec(
+			`INSERT INTO responses (status_code, headers, body, runtime_ms, request_id, created_at)
+			 VALUES (?, ?, ?, ?, ?, ?)`,
+			statusCode,
+			headers,
+			body,
+			runtimeMS,
+			requestID,
+			createdAt.UTC(),
+		)
+	} else {
+		_, err = s.db.Exec(
+			`INSERT INTO responses (status_code, headers, body, runtime_ms, request_id)
+			 VALUES (?, ?, ?, ?, ?)`,
+			statusCode,
+			headers,
+			body,
+			runtimeMS,
+			requestID,
+		)
+	}
+	if err != nil {
+		fmt.Println("Failed to record response history:", err)
+		return
+	}
+
+	limit := s.getResponseHistoryLimit()
+	if limit <= 0 {
+		return
+	}
+
+	_, err = s.db.Exec(
+		`DELETE FROM responses
+		 WHERE request_id = ?
+		   AND id NOT IN (
+		       SELECT id FROM responses
+		       WHERE request_id = ?
+		       ORDER BY COALESCE(created_at, CURRENT_TIMESTAMP) DESC, id DESC
+		       LIMIT ?
+		   )`,
+		requestID,
+		requestID,
+		limit,
+	)
+	if err != nil {
+		fmt.Println("Failed to enforce response history TTL:", err)
+	}
 }
 
 func (s *RequestCRUDService) GetRequest(id int) Request {
@@ -96,13 +229,54 @@ func (s *RequestCRUDService) GetRequest(id int) Request {
 	}
 
 	var resp Response
-	respErr := s.db.QueryRow("SELECT id, status_code, headers, body, runtime_ms, request_id FROM responses WHERE request_id = ? ORDER BY id DESC LIMIT 1", requestID).
-		Scan(&resp.ID, &resp.StatusCode, &resp.Headers, &resp.Body, &resp.RuntimeMS, &resp.RequestID)
+	var createdAt sql.NullTime
+	respErr := s.db.QueryRow("SELECT id, status_code, headers, body, runtime_ms, request_id, created_at FROM responses WHERE request_id = ? ORDER BY COALESCE(created_at, CURRENT_TIMESTAMP) DESC, id DESC LIMIT 1", requestID).
+		Scan(&resp.ID, &resp.StatusCode, &resp.Headers, &resp.Body, &resp.RuntimeMS, &resp.RequestID, &createdAt)
 	if respErr == nil {
+		if createdAt.Valid {
+			t := createdAt.Time
+			resp.CreatedAt = &t
+		}
 		r.Response = &resp
 	}
 
 	return r
+}
+
+func (s *RequestCRUDService) GetResponseHistory(requestID int) []Response {
+	if s.db == nil {
+		return []Response{}
+	}
+
+	rows, err := s.db.Query(
+		`SELECT id, status_code, headers, body, runtime_ms, request_id, created_at
+		 FROM responses
+		 WHERE request_id = ?
+		 ORDER BY COALESCE(created_at, CURRENT_TIMESTAMP) DESC, id DESC`,
+		requestID,
+	)
+	if err != nil {
+		fmt.Println("Failed to load response history:", err)
+		return []Response{}
+	}
+	defer rows.Close()
+
+	var history []Response
+	for rows.Next() {
+		var resp Response
+		var createdAt sql.NullTime
+		if err := rows.Scan(&resp.ID, &resp.StatusCode, &resp.Headers, &resp.Body, &resp.RuntimeMS, &resp.RequestID, &createdAt); err != nil {
+			fmt.Println("Failed to scan response history row:", err)
+			continue
+		}
+		if createdAt.Valid {
+			t := createdAt.Time
+			resp.CreatedAt = &t
+		}
+		history = append(history, resp)
+	}
+
+	return history
 }
 
 func (s *RequestCRUDService) DeleteRequest(id int) error {
@@ -158,7 +332,7 @@ func (s *RequestCRUDService) GetAllRequestsList() []Request {
 	return requests
 }
 
-func (s *RequestCRUDService) ExecuteRequest(method string, requestUrl string, headersIn string, body string, bodyType string, bodyFormat string, auth string) (json.RawMessage, error) {
+func (s *RequestCRUDService) ExecuteRequest(requestID int, method string, requestUrl string, headersIn string, body string, bodyType string, bodyFormat string, auth string) (json.RawMessage, error) {
 	var bodyReader io.Reader
 
 	var headers []map[string]string
@@ -282,15 +456,23 @@ func (s *RequestCRUDService) ExecuteRequest(method string, requestUrl string, he
 		bodyJSON = json.RawMessage(str)
 	}
 
+	createdAt := time.Now().UTC()
+
 	responseJSON, err := json.Marshal(map[string]interface{}{
 		"statusCode": resp.StatusCode,
 		"headers":    json.RawMessage(headersJSON),
 		"body":       bodyJSON,
 		"runtimeMS":  int(requestTime),
+		"createdAt":  createdAt,
 	})
 	if err != nil {
 		return encodeError(err), err
 	}
+
+	responseStorage := string(bodyBytes)
+	headersStorage := string(headersJSON)
+
+	s.logResponseHistory(requestID, resp.StatusCode, headersStorage, responseStorage, int(requestTime), &createdAt)
 
 	return responseJSON, nil
 }
@@ -349,11 +531,7 @@ func (s *RequestCRUDService) SaveRequest(collectionId *string, name string, desc
 
 	// Insert response if provided
 	if response != nil {
-		_, respErr := s.db.Exec("INSERT INTO responses (status_code, headers, body, runtime_ms, request_id) VALUES (?, ?, ?, ?, ?)",
-			response.StatusCode, response.Headers, response.Body, response.RuntimeMS, newRequest.ID)
-		if respErr != nil {
-			fmt.Println("Failed to insert response:", respErr)
-		}
+		s.logResponseHistory(newRequest.ID, response.StatusCode, response.Headers, response.Body, response.RuntimeMS, response.CreatedAt)
 	}
 
 	return newRequest
@@ -382,11 +560,7 @@ func (s *RequestCRUDService) UpdateRequest(id int, collectionId *string, name st
 	}
 
 	if response != nil {
-		_, respErr := s.db.Exec("INSERT INTO responses (status_code, headers, body, runtime_ms, request_id) VALUES (?, ?, ?, ?, ?)",
-			response.StatusCode, response.Headers, response.Body, response.RuntimeMS, id)
-		if respErr != nil {
-			fmt.Println("Failed to insert response:", respErr)
-		}
+		s.logResponseHistory(id, response.StatusCode, response.Headers, response.Body, response.RuntimeMS, response.CreatedAt)
 	}
 
 	return Request{

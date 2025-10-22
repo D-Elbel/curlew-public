@@ -6,6 +6,10 @@
 // @ts-ignore: Unused imports
 import {Create as $Create} from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as time$0 from "../../../time/models.js";
+
 export class Collection {
     /**
      * Creates a new Collection instance.
@@ -267,6 +271,13 @@ export class Response {
              * @type {number}
              */
             this["requestID"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {time$0.Time | null | undefined}
+             */
+            this["createdAt"] = null;
         }
 
         Object.assign(this, $$source);

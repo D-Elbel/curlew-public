@@ -48,6 +48,7 @@ export function DeleteRequest(id) {
 }
 
 /**
+ * @param {number} requestID
  * @param {string} method
  * @param {string} requestUrl
  * @param {string} headersIn
@@ -57,8 +58,8 @@ export function DeleteRequest(id) {
  * @param {string} auth
  * @returns {Promise<json$0.RawMessage> & { cancel(): void }}
  */
-export function ExecuteRequest(method, requestUrl, headersIn, body, bodyType, bodyFormat, auth) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1005662952, method, requestUrl, headersIn, body, bodyType, bodyFormat, auth));
+export function ExecuteRequest(requestID, method, requestUrl, headersIn, body, bodyType, bodyFormat, auth) {
+    let $resultPromise = /** @type {any} */($Call.ByID(1005662952, requestID, method, requestUrl, headersIn, body, bodyType, bodyFormat, auth));
     return $resultPromise;
 }
 
@@ -98,6 +99,27 @@ export function GetRequest(id) {
     }));
     $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
     return $typingPromise;
+}
+
+/**
+ * @param {number} requestID
+ * @returns {Promise<$models.Response[]> & { cancel(): void }}
+ */
+export function GetResponseHistory(requestID) {
+    let $resultPromise = /** @type {any} */($Call.ByID(3419080141, requestID));
+    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
+        return $$createType5($result);
+    }));
+    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
+    return $typingPromise;
+}
+
+/**
+ * @returns {Promise<void> & { cancel(): void }}
+ */
+export function Init() {
+    let $resultPromise = /** @type {any} */($Call.ByID(293696986));
+    return $resultPromise;
 }
 
 /**
@@ -196,3 +218,5 @@ const $$createType0 = $models.Collection.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $models.Request.createFrom;
 const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.Response.createFrom;
+const $$createType5 = $Create.Array($$createType4);

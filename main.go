@@ -43,6 +43,8 @@ func main() {
 	fileService := &FileService{db: db}
 	appStateService := NewAppStateService(db)
 
+	crudService.Init()
+
 	app := application.New(application.Options{
 		Name:        "curlew",
 		Description: "A demo of using raw HTML & CSS",
