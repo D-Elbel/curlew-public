@@ -24,9 +24,11 @@ export default function SettingsModal({ open, onOpenChange }) {
     const [settings, setSettings] = useState({
         theme: "dark",
         defaultEnv: "",
-        enableAnimations: true
+        enableAnimations: true,
+        responseHistoryTTL: "5"
     });
     const [keybinds, setKeybinds] = useState([]);
+    const [ttlError, setTtlError] = useState("");
     const { reloadHotkeys } = useHotkeys();
     const envs = useEnvarStore((state) => state.environmentVariables);
     const NO_ENV_VALUE = "__none__";
@@ -38,7 +40,16 @@ export default function SettingsModal({ open, onOpenChange }) {
             (async () => {
                 try {
                     const loadedSettings = await LoadUserSettings();
-                    setSettings(loadedSettings);
+                    setSettings({
+                        theme: loadedSettings?.theme ?? "dark",
+                        defaultEnv: loadedSettings?.defaultEnv ?? "",
+                        enableAnimations: loadedSettings?.enableAnimations ?? true,
+                        responseHistoryTTL:
+                            loadedSettings?.responseHistoryTTL != null
+                                ? String(loadedSettings.responseHistoryTTL)
+                                : "5",
+                    });
+                    setTtlError("");
 
                     const loadedKeybinds = await FetchUserKeybinds();
                     setKeybinds(loadedKeybinds);
@@ -49,11 +60,39 @@ export default function SettingsModal({ open, onOpenChange }) {
         }
     }, [open]);
 
+    const handleTtlChange = (value) => {
+        setSettings((prev) => ({
+            ...prev,
+            responseHistoryTTL: value,
+        }));
+
+        const parsed = parseInt(value, 10);
+        if (!Number.isFinite(parsed) || parsed < 1) {
+            setTtlError("Please enter a value of 1 or greater.");
+        } else {
+            setTtlError("");
+        }
+    };
+
     const handleSave = async () => {
+        const ttlNumber = parseInt(settings.responseHistoryTTL, 10);
+        if (!Number.isFinite(ttlNumber) || ttlNumber < 1) {
+            setTtlError("Please enter a value of 1 or greater.");
+            return;
+        }
+        setTtlError("");
+
         try {
-            await SaveUserSettings(settings);
+            await SaveUserSettings({
+                ...settings,
+                responseHistoryTTL: ttlNumber,
+            });
             await UpdateUserKeybinds(keybinds);
             reloadHotkeys();
+            setSettings((prev) => ({
+                ...prev,
+                responseHistoryTTL: String(ttlNumber),
+            }));
         } catch (err) {
             console.error("Failed to save settings", err);
         }
@@ -161,6 +200,27 @@ export default function SettingsModal({ open, onOpenChange }) {
                                                 }
                                             />
                                         </div>
+                                    </section>
+
+                                    <section>
+                                        <h3 className="text-base font-semibold mb-2">Response History</h3>
+                                        <label className="block text-sm font-medium mb-1">
+                                            Entries to keep per request
+                                        </label>
+                                        <Input
+                                            type="number"
+                                            min={1}
+                                            value={settings.responseHistoryTTL}
+                                            onChange={(e) => handleTtlChange(e.target.value)}
+                                            className="w-64"
+                                        />
+                                        {ttlError ? (
+                                            <p className="text-xs text-red-400 mt-1">{ttlError}</p>
+                                        ) : (
+                                            <p className="text-xs text-gray-400 mt-1">
+                                                Oldest responses beyond this count are removed automatically.
+                                            </p>
+                                        )}
                                     </section>
                                 </>
                             )}

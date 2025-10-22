@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -53,11 +52,6 @@ type Response struct {
 	RequestID  int        `json:"requestID"`
 	CreatedAt  *time.Time `json:"createdAt,omitempty"`
 }
-
-const (
-	responseHistoryTTLKey     = "response_history_ttl"
-	defaultResponseHistoryTTL = 5
-)
 
 func (s *RequestCRUDService) Init() {
 	s.ensureResponsesSchema()
@@ -108,25 +102,12 @@ func (s *RequestCRUDService) ensureResponsesSchema() {
 }
 
 func (s *RequestCRUDService) getResponseHistoryLimit() int {
-	if s.db == nil {
-		return defaultResponseHistoryTTL
-	}
-
-	var raw string
-	err := s.db.QueryRow(`SELECT value FROM app_state WHERE key = ?`, responseHistoryTTLKey).Scan(&raw)
-	if err == sql.ErrNoRows {
-		return defaultResponseHistoryTTL
-	}
+	ttl, err := loadResponseHistoryTTL(s.db)
 	if err != nil {
 		fmt.Println("Failed to load response history TTL:", err)
 		return defaultResponseHistoryTTL
 	}
-
-	val, err := strconv.Atoi(strings.TrimSpace(raw))
-	if err != nil || val < 1 {
-		return defaultResponseHistoryTTL
-	}
-	return val
+	return ttl
 }
 
 func (s *RequestCRUDService) logResponseHistory(requestID int, statusCode int, headers string, body string, runtimeMS int, createdAt *time.Time) {

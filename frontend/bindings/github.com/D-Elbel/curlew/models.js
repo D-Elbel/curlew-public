@@ -321,6 +321,13 @@ export class UserSettings {
              */
             this["enableAnimations"] = false;
         }
+        if (!("responseHistoryTTL" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["responseHistoryTTL"] = 0;
+        }
 
         Object.assign(this, $$source);
     }
