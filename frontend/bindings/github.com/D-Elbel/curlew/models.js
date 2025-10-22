@@ -127,65 +127,65 @@ export class Request {
         if (!("name" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {string | null}
              */
-            this["name"] = "";
+            this["name"] = null;
         }
         if (!("description" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {string | null}
              */
-            this["description"] = "";
+            this["description"] = null;
         }
         if (!("method" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {string | null}
              */
-            this["method"] = "";
+            this["method"] = null;
         }
         if (!("url" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {string | null}
              */
-            this["url"] = "";
+            this["url"] = null;
         }
         if (!("headers" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {string | null}
              */
-            this["headers"] = "";
+            this["headers"] = null;
         }
         if (!("body" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {string | null}
              */
-            this["body"] = "";
+            this["body"] = null;
         }
         if (!("bodyType" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {string | null}
              */
-            this["bodyType"] = "";
+            this["bodyType"] = null;
         }
         if (!("bodyFormat" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {string | null}
              */
-            this["bodyFormat"] = "";
+            this["bodyFormat"] = null;
         }
         if (!("auth" in $$source)) {
             /**
              * @member
-             * @type {string}
+             * @type {string | null}
              */
-            this["auth"] = "";
+            this["auth"] = null;
         }
         if (!("sortOrder" in $$source)) {
             /**

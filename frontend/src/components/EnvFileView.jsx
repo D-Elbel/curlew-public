@@ -4,6 +4,7 @@ import { githubDark } from '@uiw/codemirror-theme-github';
 import { ReadEnvFile, SaveEnvFile, CreateEnvFile, ScanEnvars } from '../../bindings/github.com/D-Elbel/curlew/envarservice.js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useEnvarStore } from "@/stores/envarStore";
 
 export default function EnvFileView({ filename: initialFilename, isNew = false, onClose }) {
     const [content, setContent] = useState('');
@@ -11,6 +12,7 @@ export default function EnvFileView({ filename: initialFilename, isNew = false, 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [saving, setSaving] = useState(false);
+    const setEnvironmentVariables = useEnvarStore((state) => state.setEnvironmentVariables);
 
     useEffect(() => {
         if (!isNew) {
@@ -44,7 +46,8 @@ export default function EnvFileView({ filename: initialFilename, isNew = false, 
                 await CreateEnvFile(filename);
             }
             await SaveEnvFile(filename, content);
-            await ScanEnvars();
+            const updatedEnvs = await ScanEnvars();
+            setEnvironmentVariables(updatedEnvs);
             onClose();
         } catch (err) {
             setError(err.toString());

@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    collection_id TEXT NOT NULL,
+    collection_id TEXT,
     name TEXT,
     description TEXT,
     method TEXT,

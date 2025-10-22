@@ -23,33 +23,17 @@ type Request struct {
 	ID             int       `json:"id"`
 	CollectionID   *string   `json:"collectionId"`
 	CollectionName *string   `json:"collectionName"`
-	Name           string    `json:"name"`
-	Description    string    `json:"description"`
-	Method         string    `json:"method"`
-	URL            string    `json:"url"`
-	Headers        string    `json:"headers"`
-	Body           string    `json:"body"`
-	BodyType       string    `json:"bodyType"`
-	BodyFormat     string    `json:"bodyFormat"`
-	Auth           string    `json:"auth"`
+	Name           *string   `json:"name"`
+	Description    *string   `json:"description"`
+	Method         *string   `json:"method"`
+	URL            *string   `json:"url"`
+	Headers        *string   `json:"headers"`
+	Body           *string   `json:"body"`
+	BodyType       *string   `json:"bodyType"`
+	BodyFormat     *string   `json:"bodyFormat"`
+	Auth           *string   `json:"auth"`
 	SortOrder      *int      `json:"sortOrder"`
 	Response       *Response `json:"response,omitempty"`
-}
-
-type DbRequest struct {
-	ID             int
-	CollectionID   sql.NullString
-	CollectionName sql.NullString
-	Name           sql.NullString
-	Description    sql.NullString
-	Method         sql.NullString
-	URL            sql.NullString
-	Headers        sql.NullString
-	Body           sql.NullString
-	BodyType       sql.NullString
-	BodyFormat     sql.NullString
-	Auth           sql.NullString
-	SortOrder      sql.NullInt64
 }
 
 type Collection struct {
@@ -69,10 +53,24 @@ type Response struct {
 }
 
 func (s *RequestCRUDService) GetRequest(id int) Request {
-	var dbR DbRequest
+	var (
+		requestID      int
+		collectionID   sql.NullString
+		collectionName sql.NullString
+		name           sql.NullString
+		description    sql.NullString
+		method         sql.NullString
+		url            sql.NullString
+		headers        sql.NullString
+		body           sql.NullString
+		bodyType       sql.NullString
+		bodyFormat     sql.NullString
+		auth           sql.NullString
+	)
+
 	s.app.EmitEvent("test")
 	err := s.db.QueryRow("SELECT requests.id, requests.collection_id, collections.name as 'collection_name', requests.name, requests.description, requests.method, requests.url, requests.headers, requests.body, requests.body_type, requests.body_format, requests.auth FROM requests LEFT JOIN collections ON collections.id = requests.collection_id WHERE requests.id = ?", id).
-		Scan(&dbR.ID, &dbR.CollectionID, &dbR.CollectionName, &dbR.Name, &dbR.Description, &dbR.Method, &dbR.URL, &dbR.Headers, &dbR.Body, &dbR.BodyType, &dbR.BodyFormat, &dbR.Auth)
+		Scan(&requestID, &collectionID, &collectionName, &name, &description, &method, &url, &headers, &body, &bodyType, &bodyFormat, &auth)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -83,21 +81,22 @@ func (s *RequestCRUDService) GetRequest(id int) Request {
 	}
 
 	var r = Request{
-		ID:             dbR.ID,
-		CollectionID:   nullStringToPointer(dbR.CollectionID),
-		CollectionName: nullStringToPointer(dbR.CollectionName),
-		Name:           dbR.Name.String,
-		Description:    dbR.Description.String,
-		Method:         dbR.Method.String,
-		URL:            dbR.URL.String,
-		Headers:        nullStringToEmptyString(dbR.Headers),
-		Body:           nullStringToEmptyString(dbR.Body),
-		BodyType:       nullStringToEmptyString(dbR.BodyType),
-		BodyFormat:     nullStringToEmptyString(dbR.BodyFormat),
+		ID:             requestID,
+		CollectionID:   nullStringToPointer(collectionID),
+		CollectionName: nullStringToPointer(collectionName),
+		Name:           nullStringToPointer(name),
+		Description:    nullStringToPointer(description),
+		Method:         nullStringToPointer(method),
+		URL:            nullStringToPointer(url),
+		Headers:        nullStringToPointer(headers),
+		Body:           nullStringToPointer(body),
+		BodyType:       nullStringToPointer(bodyType),
+		BodyFormat:     nullStringToPointer(bodyFormat),
+		Auth:           nullStringToPointer(auth),
 	}
 
 	var resp Response
-	respErr := s.db.QueryRow("SELECT id, status_code, headers, body, runtime_ms, request_id FROM responses WHERE request_id = ? ORDER BY id DESC LIMIT 1", dbR.ID).
+	respErr := s.db.QueryRow("SELECT id, status_code, headers, body, runtime_ms, request_id FROM responses WHERE request_id = ? ORDER BY id DESC LIMIT 1", requestID).
 		Scan(&resp.ID, &resp.StatusCode, &resp.Headers, &resp.Body, &resp.RuntimeMS, &resp.RequestID)
 	if respErr == nil {
 		r.Response = &resp
@@ -129,20 +128,29 @@ func (s *RequestCRUDService) GetAllRequestsList() []Request {
 	defer rows.Close()
 
 	for rows.Next() {
-		var dbR DbRequest
-		err := rows.Scan(&dbR.ID, &dbR.CollectionID, &dbR.Name, &dbR.Description, &dbR.Method, &dbR.URL, &dbR.SortOrder)
+		var (
+			requestID    int
+			collectionID sql.NullString
+			name         sql.NullString
+			description  sql.NullString
+			method       sql.NullString
+			url          sql.NullString
+			sortOrder    sql.NullInt64
+		)
+
+		err := rows.Scan(&requestID, &collectionID, &name, &description, &method, &url, &sortOrder)
 		if err != nil {
 			fmt.Println("Failed to scan request:", err)
 			continue
 		}
 		var r = Request{
-			ID:           dbR.ID,
-			CollectionID: nullStringToPointer(dbR.CollectionID),
-			Name:         dbR.Name.String,
-			Description:  dbR.Description.String,
-			Method:       dbR.Method.String,
-			URL:          dbR.URL.String,
-			SortOrder:    nullIntToPointer(dbR.SortOrder),
+			ID:           requestID,
+			CollectionID: nullStringToPointer(collectionID),
+			Name:         nullStringToPointer(name),
+			Description:  nullStringToPointer(description),
+			Method:       nullStringToPointer(method),
+			URL:          nullStringToPointer(url),
+			SortOrder:    nullIntToPointer(sortOrder),
 		}
 		requests = append(requests, r)
 	}
@@ -297,15 +305,15 @@ func encodeError(err error) json.RawMessage {
 func (s *RequestCRUDService) SaveRequest(collectionId *string, name string, description string, method string, url string, headers string, body string, bodyType string, bodyFormat string, auth string, response *Response) Request {
 	var newRequest = Request{
 		CollectionID: collectionId,
-		Name:         name,
-		Description:  description,
-		Method:       method,
-		URL:          url,
-		Headers:      headers,
-		Body:         body,
-		BodyType:     bodyType,
-		BodyFormat:   bodyFormat,
-		Auth:         auth,
+		Name:         stringPointerOrNil(name),
+		Description:  stringPointerOrNil(description),
+		Method:       stringPointerOrNil(method),
+		URL:          stringPointerOrNil(url),
+		Headers:      stringPointerOrNil(headers),
+		Body:         stringPointerOrNil(body),
+		BodyType:     stringPointerOrNil(bodyType),
+		BodyFormat:   stringPointerOrNil(bodyFormat),
+		Auth:         stringPointerOrNil(auth),
 	}
 
 	// Get the next sort order for this collection
@@ -322,20 +330,22 @@ func (s *RequestCRUDService) SaveRequest(collectionId *string, name string, desc
 
 	err = s.db.QueryRow("INSERT INTO requests (collection_id, name, description, method, url, headers, body, body_type, body_format, auth, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING ID",
 		newRequest.CollectionID,
-		emptyStringToNullString(newRequest.Name),
-		emptyStringToNullString(newRequest.Description),
-		emptyStringToNullString(newRequest.Method),
-		emptyStringToNullString(newRequest.URL),
-		emptyStringToNullString(newRequest.Headers),
-		emptyStringToNullString(newRequest.Body),
-		emptyStringToNullString(newRequest.BodyType),
-		emptyStringToNullString(newRequest.BodyFormat),
-		emptyStringToNullString(newRequest.Auth),
+		emptyStringToNullString(name),
+		emptyStringToNullString(description),
+		emptyStringToNullString(method),
+		emptyStringToNullString(url),
+		emptyStringToNullString(headers),
+		emptyStringToNullString(body),
+		emptyStringToNullString(bodyType),
+		emptyStringToNullString(bodyFormat),
+		emptyStringToNullString(auth),
 		nextSortOrder).Scan(&newRequest.ID)
 	if err != nil {
 		fmt.Println("Failed to insert request:", err)
 		return Request{}
 	}
+
+	newRequest.SortOrder = intPointer(nextSortOrder)
 
 	// Insert response if provided
 	if response != nil {
@@ -382,15 +392,15 @@ func (s *RequestCRUDService) UpdateRequest(id int, collectionId *string, name st
 	return Request{
 		ID:           id,
 		CollectionID: collectionId,
-		Name:         name,
-		Description:  description,
-		Method:       method,
-		URL:          requestUrl,
-		Headers:      headers,
-		Body:         body,
-		BodyType:     bodyType,
-		BodyFormat:   bodyFormat,
-		Auth:         auth,
+		Name:         stringPointerOrNil(name),
+		Description:  stringPointerOrNil(description),
+		Method:       stringPointerOrNil(method),
+		URL:          stringPointerOrNil(requestUrl),
+		Headers:      stringPointerOrNil(headers),
+		Body:         stringPointerOrNil(body),
+		BodyType:     stringPointerOrNil(bodyType),
+		BodyFormat:   stringPointerOrNil(bodyFormat),
+		Auth:         stringPointerOrNil(auth),
 	}
 }
 
@@ -458,17 +468,33 @@ func (s *RequestCRUDService) SetRequestSortOrder(id int, sortOrder int) error {
 	}
 
 	if currentOrder < sortOrder {
-		_, err = s.db.Exec(`
+		if collectionId.Valid {
+			_, err = s.db.Exec(`
 			UPDATE requests 
 			SET sort_order = sort_order - 1 
 			WHERE collection_id = ? AND sort_order > ? AND sort_order <= ? AND id != ?
-		`, collectionId, currentOrder, sortOrder, id)
+		`, collectionId.String, currentOrder, sortOrder, id)
+		} else {
+			_, err = s.db.Exec(`
+			UPDATE requests 
+			SET sort_order = sort_order - 1 
+			WHERE collection_id IS NULL AND sort_order > ? AND sort_order <= ? AND id != ?
+		`, currentOrder, sortOrder, id)
+		}
 	} else {
-		_, err = s.db.Exec(`
+		if collectionId.Valid {
+			_, err = s.db.Exec(`
 			UPDATE requests 
 			SET sort_order = sort_order + 1 
 			WHERE collection_id = ? AND sort_order >= ? AND sort_order < ? AND id != ?
-		`, collectionId, sortOrder, currentOrder, id)
+		`, collectionId.String, sortOrder, currentOrder, id)
+		} else {
+			_, err = s.db.Exec(`
+			UPDATE requests 
+			SET sort_order = sort_order + 1 
+			WHERE collection_id IS NULL AND sort_order >= ? AND sort_order < ? AND id != ?
+		`, sortOrder, currentOrder, id)
+		}
 	}
 
 	if err != nil {
@@ -502,28 +528,36 @@ func (s *RequestCRUDService) SearchRequests(searchTerm string) []Request {
 	defer rows.Close()
 
 	for rows.Next() {
-		var dbR DbRequest
+		var (
+			requestID    int
+			collectionID sql.NullString
+			name         sql.NullString
+			description  sql.NullString
+			bodyValue    sql.NullString
+			url          sql.NullString
+			methodValue  sql.NullString
+		)
 		err := rows.Scan(
-			&dbR.ID,
-			&dbR.CollectionID,
-			&dbR.Name,
-			&dbR.Description,
-			&dbR.Body,
-			&dbR.URL,
-			&dbR.Method,
+			&requestID,
+			&collectionID,
+			&name,
+			&description,
+			&bodyValue,
+			&url,
+			&methodValue,
 		)
 		if err != nil {
 			fmt.Println("Failed to scan request:", err)
 			continue
 		}
 		r := Request{
-			ID:           dbR.ID,
-			CollectionID: nullStringToPointer(dbR.CollectionID),
-			Name:         dbR.Name.String,
-			Description:  dbR.Description.String,
-			Body:         nullStringToEmptyString(dbR.Body),
-			URL:          dbR.URL.String,
-			Method:       dbR.Method.String,
+			ID:           requestID,
+			CollectionID: nullStringToPointer(collectionID),
+			Name:         nullStringToPointer(name),
+			Description:  nullStringToPointer(description),
+			Body:         nullStringToPointer(bodyValue),
+			URL:          nullStringToPointer(url),
+			Method:       nullStringToPointer(methodValue),
 		}
 		requests = append(requests, r)
 	}
@@ -593,9 +627,13 @@ func (s *RequestCRUDService) UpdateCollectionParent(collectionId string, parentI
 }
 
 func (s *RequestCRUDService) SetRequestCollection(requestId int, collectionId string) {
-	err := s.db.QueryRow("UPDATE requests SET collection_id = ? WHERE id = ?", collectionId, requestId)
-	if err != nil {
-		fmt.Println("Filed to set request collection", err)
+	var value interface{}
+	if strings.TrimSpace(collectionId) != "" {
+		value = collectionId
+	}
+
+	if _, err := s.db.Exec("UPDATE requests SET collection_id = ? WHERE id = ?", value, requestId); err != nil {
+		fmt.Println("Failed to set request collection", err)
 	}
 }
 
@@ -659,18 +697,36 @@ func (s *RequestCRUDService) normalizeRequestSortOrder() {
 	defer rows.Close()
 
 	for rows.Next() {
-		var collectionID string
+		var collectionID sql.NullString
 		if err := rows.Scan(&collectionID); err != nil {
 			fmt.Println("Failed to scan collection id during sort normalization:", err)
 			continue
 		}
 
-		reqRows, err := s.db.Query(`
+		var (
+			reqRows *sql.Rows
+			query   string
+			args    []interface{}
+		)
+
+		if collectionID.Valid {
+			query = `
 			SELECT id, sort_order
 			FROM requests
 			WHERE collection_id = ?
 			ORDER BY CASE WHEN sort_order IS NULL THEN 1 ELSE 0 END, sort_order, id
-		`, collectionID)
+		`
+			args = []interface{}{collectionID.String}
+		} else {
+			query = `
+			SELECT id, sort_order
+			FROM requests
+			WHERE collection_id IS NULL
+			ORDER BY CASE WHEN sort_order IS NULL THEN 1 ELSE 0 END, sort_order, id
+		`
+		}
+
+		reqRows, err = s.db.Query(query, args...)
 		if err != nil {
 			fmt.Println("Failed to load requests for normalization:", err)
 			continue
@@ -735,16 +791,23 @@ func emptyStringToNullString(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: true}
 }
 
-func nullStringToEmptyString(s sql.NullString) string {
-	if s.Valid {
-		return s.String
+func stringPointerOrNil(value string) *string {
+	if value == "" {
+		return nil
 	}
-	return ""
+	v := value
+	return &v
+}
+
+func intPointer(value int) *int {
+	v := value
+	return &v
 }
 
 func nullStringToPointer(ns sql.NullString) *string {
 	if ns.Valid {
-		return &ns.String
+		value := ns.String
+		return &value
 	}
 	return nil
 }
