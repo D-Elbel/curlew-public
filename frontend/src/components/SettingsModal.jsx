@@ -13,6 +13,8 @@ import {
 import {
     LoadUserSettings,
     SaveUserSettings,
+} from "../../bindings/github.com/D-Elbel/curlew/appstateservice.js";
+import {
     FetchUserKeybinds,
     UpdateUserKeybinds,
 } from "../../bindings/github.com/D-Elbel/curlew/userservice.js";
