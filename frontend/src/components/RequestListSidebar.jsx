@@ -49,6 +49,7 @@ import {
     Variable,
     Upload,
     FileText,
+    Copy,
 } from "lucide-react";
 import hotkeys from "hotkeys-js";
 import { useHotkeys } from "@/services/HotkeysContext.jsx";
@@ -61,7 +62,7 @@ const validUUIDRegex =
 
 
 
-const DraggableRequest = ({ req, onDelete, onRequestSelect, activeDragId, index }) => {
+const DraggableRequest = ({ req, onDelete, onDuplicate, onRequestSelect, activeDragId, index }) => {
     const {
         attributes,
         listeners,
@@ -115,6 +116,13 @@ const DraggableRequest = ({ req, onDelete, onRequestSelect, activeDragId, index 
                 </div>
             </div>
             <div className="opacity-0 group-hover:opacity-100 flex items-center">
+                <Copy
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDuplicate?.(req);
+                    }}
+                    className="w-3 h-3 ml-1 text-slate-400 hover:text-slate-200 cursor-pointer"
+                />
                 <Trash2
                     onClick={(e) => {
                         e.stopPropagation();
@@ -156,14 +164,15 @@ const RequestDropZone = ({ collectionId, index, isLast = false }) => {
 };
 
 const CollectionItem = ({
-                            collection,
-                            allRequests,
-                            level = 0,
-                            onDeleteCollection,
-                            onDeleteRequest,
-                            onRequestSelect,
-                            activeDragId,
-                        }) => {
+    collection,
+    allRequests,
+    level = 0,
+    onDeleteCollection,
+    onDeleteRequest,
+    onDuplicateRequest,
+    onRequestSelect,
+    activeDragId,
+}) => {
     const { isOver, setNodeRef: droppableRef } = useDroppable({
         id: collection.id,
         data: { type: "collection" }
@@ -266,6 +275,7 @@ const CollectionItem = ({
                                 level={level + 1}
                                 onDeleteCollection={onDeleteCollection}
                                 onDeleteRequest={onDeleteRequest}
+                                onDuplicateRequest={onDuplicateRequest}
                                 onRequestSelect={onRequestSelect}
                                 activeDragId={activeDragId}
                             />
@@ -281,6 +291,7 @@ const CollectionItem = ({
                                             req={req}
                                             index={index}
                                             onDelete={onDeleteRequest}
+                                            onDuplicate={onDuplicateRequest}
                                             onRequestSelect={onRequestSelect}
                                             activeDragId={activeDragId}
                                         />
@@ -623,6 +634,7 @@ export default function RequestListSidebar({
     const loadAll = useRequestStore((state) => state.loadAll);
     const deleteRequest = useRequestStore((state) => state.deleteRequest);
     const deleteCollection = useRequestStore((state) => state.deleteCollection);
+    const duplicateRequest = useRequestStore((state) => state.duplicateRequest);
 
     const [isDialogOpen, setDialogOpen] = useState(false);
     const [isImportOpen, setImportOpen] = useState(false);
@@ -728,6 +740,20 @@ export default function RequestListSidebar({
         }
     };
 
+    const handleDuplicateRequest = async (req) => {
+        if (!req?.id) {
+            return;
+        }
+        try {
+            const duplicated = await duplicateRequest(req.id);
+            if (duplicated) {
+                onRequestSelect?.(duplicated, false);
+            }
+        } catch (error) {
+            console.error("Failed to duplicate request:", error);
+        }
+    };
+
     const handleDeleteCollection = async (id, name) => {
         if (
             window.confirm(
@@ -770,6 +796,7 @@ export default function RequestListSidebar({
                                     allRequests={requests}
                                     onDeleteCollection={handleDeleteCollection}
                                     onDeleteRequest={handleDeleteRequest}
+                                    onDuplicateRequest={handleDuplicateRequest}
                                     onRequestSelect={onRequestSelect}
                                     activeDragId={activeDragId}
                                 />
@@ -778,6 +805,7 @@ export default function RequestListSidebar({
                                 <UncategorizedDroppable
                                     requests={uncategorizedRequests}
                                     onDelete={handleDeleteRequest}
+                                    onDuplicate={handleDuplicateRequest}
                                     onRequestSelect={onRequestSelect}
                                     activeDragId={activeDragId}
                                 />

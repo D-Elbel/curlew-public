@@ -518,6 +518,245 @@ func (s *RequestCRUDService) SaveRequest(collectionId *string, name string, desc
 	return newRequest
 }
 
+func (s *RequestCRUDService) DuplicateRequest(requestID int) (Request, error) {
+	if s.db == nil {
+		return Request{}, fmt.Errorf("database not initialized")
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return Request{}, fmt.Errorf("failed to start duplication transaction: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	var (
+		collectionID   sql.NullString
+		collectionName sql.NullString
+		name           sql.NullString
+		description    sql.NullString
+		method         sql.NullString
+		url            sql.NullString
+		headers        sql.NullString
+		body           sql.NullString
+		bodyType       sql.NullString
+		bodyFormat     sql.NullString
+		auth           sql.NullString
+	)
+
+	err = tx.QueryRow(`
+		SELECT r.collection_id, c.name, r.name, r.description, r.method, r.url, r.headers, r.body, r.body_type, r.body_format, r.auth
+		FROM requests r
+		LEFT JOIN collections c ON c.id = r.collection_id
+		WHERE r.id = ?
+	`, requestID).Scan(&collectionID, &collectionName, &name, &description, &method, &url, &headers, &body, &bodyType, &bodyFormat, &auth)
+	if err == sql.ErrNoRows {
+		return Request{}, fmt.Errorf("request %d not found", requestID)
+	}
+	if err != nil {
+		return Request{}, fmt.Errorf("failed to load request %d: %w", requestID, err)
+	}
+
+	baseName := strings.TrimSpace(name.String)
+	if baseName == "" {
+		baseName = "Untitled Request"
+	}
+	duplicateName := fmt.Sprintf("%s (Copy)", baseName)
+
+	var maxSort sql.NullInt64
+	if collectionID.Valid {
+		err = tx.QueryRow("SELECT MAX(sort_order) FROM requests WHERE collection_id = ?", collectionID.String).Scan(&maxSort)
+	} else {
+		err = tx.QueryRow("SELECT MAX(sort_order) FROM requests WHERE collection_id IS NULL").Scan(&maxSort)
+	}
+	if err != nil {
+		return Request{}, fmt.Errorf("failed to determine sort order for duplicate: %w", err)
+	}
+
+	nextSort := 0
+	if maxSort.Valid {
+		nextSort = int(maxSort.Int64) + 1
+	}
+
+	var collectionValue interface{}
+	if collectionID.Valid {
+		collectionValue = collectionID.String
+	}
+
+	descStr := ""
+	if description.Valid {
+		descStr = description.String
+	}
+	methodStr := ""
+	if method.Valid {
+		methodStr = method.String
+	}
+	urlStr := ""
+	if url.Valid {
+		urlStr = url.String
+	}
+	headersStr := ""
+	if headers.Valid {
+		headersStr = headers.String
+	}
+	bodyStr := ""
+	if body.Valid {
+		bodyStr = body.String
+	}
+	bodyTypeStr := ""
+	if bodyType.Valid {
+		bodyTypeStr = bodyType.String
+	}
+	bodyFormatStr := ""
+	if bodyFormat.Valid {
+		bodyFormatStr = bodyFormat.String
+	}
+	authStr := ""
+	if auth.Valid {
+		authStr = auth.String
+	}
+
+	var newRequestID int
+	err = tx.QueryRow(
+		`INSERT INTO requests (collection_id, name, description, method, url, headers, body, body_type, body_format, auth, sort_order)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 RETURNING id`,
+		collectionValue,
+		emptyStringToNullString(duplicateName),
+		emptyStringToNullString(descStr),
+		emptyStringToNullString(methodStr),
+		emptyStringToNullString(urlStr),
+		emptyStringToNullString(headersStr),
+		emptyStringToNullString(bodyStr),
+		emptyStringToNullString(bodyTypeStr),
+		emptyStringToNullString(bodyFormatStr),
+		emptyStringToNullString(authStr),
+		nextSort,
+	).Scan(&newRequestID)
+	if err != nil {
+		return Request{}, fmt.Errorf("failed to insert duplicated request: %w", err)
+	}
+
+	var latestResponse *Response
+	rows, err := tx.Query(`
+		SELECT status_code, headers, body, runtime_ms, created_at
+		FROM responses
+		WHERE request_id = ?
+		ORDER BY COALESCE(created_at, CURRENT_TIMESTAMP), id
+	`, requestID)
+	if err != nil {
+		return Request{}, fmt.Errorf("failed to load responses for duplication: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			statusCode sql.NullInt64
+			headersVal sql.NullString
+			bodyVal    sql.NullString
+			runtimeVal sql.NullInt64
+			createdAt  sql.NullTime
+		)
+
+		if err = rows.Scan(&statusCode, &headersVal, &bodyVal, &runtimeVal, &createdAt); err != nil {
+			return Request{}, fmt.Errorf("failed to scan response for duplication: %w", err)
+		}
+
+		statusInsert := interface{}(nil)
+		if statusCode.Valid {
+			statusInsert = statusCode.Int64
+		}
+
+		headersInsert := interface{}(nil)
+		if headersVal.Valid {
+			headersInsert = headersVal.String
+		}
+
+		bodyInsert := interface{}(nil)
+		if bodyVal.Valid {
+			bodyInsert = bodyVal.String
+		}
+
+		runtimeInsert := interface{}(nil)
+		if runtimeVal.Valid {
+			runtimeInsert = runtimeVal.Int64
+		}
+
+		createdInsert := interface{}(nil)
+		if createdAt.Valid {
+			createdInsert = createdAt.Time.UTC()
+		}
+
+		result, execErr := tx.Exec(
+			`INSERT INTO responses (status_code, headers, body, runtime_ms, request_id, created_at)
+			 VALUES (?, ?, ?, ?, ?, ?)`,
+			statusInsert,
+			headersInsert,
+			bodyInsert,
+			runtimeInsert,
+			newRequestID,
+			createdInsert,
+		)
+		if execErr != nil {
+			return Request{}, fmt.Errorf("failed to duplicate response history: %w", execErr)
+		}
+
+		if statusCode.Valid {
+			insertedID, idErr := result.LastInsertId()
+			if idErr == nil {
+				runtimeInt := 0
+				if runtimeVal.Valid {
+					runtimeInt = int(runtimeVal.Int64)
+				}
+				resp := Response{
+					ID:         int(insertedID),
+					StatusCode: int(statusCode.Int64),
+					Headers:    headersVal.String,
+					Body:       bodyVal.String,
+					RuntimeMS:  runtimeInt,
+					RequestID:  newRequestID,
+				}
+				if createdAt.Valid {
+					t := createdAt.Time
+					resp.CreatedAt = &t
+				}
+				latestResponse = &resp
+			}
+		}
+	}
+	if err = rows.Err(); err != nil {
+		return Request{}, fmt.Errorf("failed during response duplication: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return Request{}, fmt.Errorf("failed to commit duplicated request: %w", err)
+	}
+	committed = true
+
+	duplicated := Request{
+		ID:             newRequestID,
+		CollectionID:   nullStringToPointer(collectionID),
+		CollectionName: nullStringToPointer(collectionName),
+		Name:           stringPointerOrNil(duplicateName),
+		Description:    nullStringToPointer(description),
+		Method:         nullStringToPointer(method),
+		URL:            nullStringToPointer(url),
+		Headers:        nullStringToPointer(headers),
+		Body:           nullStringToPointer(body),
+		BodyType:       nullStringToPointer(bodyType),
+		BodyFormat:     nullStringToPointer(bodyFormat),
+		Auth:           nullStringToPointer(auth),
+		SortOrder:      intPointer(nextSort),
+		Response:       latestResponse,
+	}
+
+	return duplicated, nil
+}
+
 func (s *RequestCRUDService) UpdateRequest(id int, collectionId *string, name string, description string, method string, requestUrl string, headers string, body string, bodyType string, bodyFormat string, auth string, response *Response) Request {
 	_, err := s.db.Exec(
 		`UPDATE requests
