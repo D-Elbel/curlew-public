@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -58,98 +57,6 @@ func (s *UserService) FetchUserKeybinds() json.RawMessage {
 	}
 
 	return jsonBytes
-}
-
-type UserSettings struct {
-	Theme              string `json:"theme"`
-	DefaultEnv         string `json:"defaultEnv"`
-	EnableAnimations   bool   `json:"enableAnimations"`
-	ResponseHistoryTTL int    `json:"responseHistoryTTL"`
-}
-
-func (s *UserService) LoadUserSettings() (*UserSettings, error) {
-	defaultSettings := &UserSettings{
-		Theme:              "dark",
-		DefaultEnv:         "",
-		EnableAnimations:   true,
-		ResponseHistoryTTL: defaultResponseHistoryTTL,
-	}
-
-	var configJSON sql.NullString
-
-	err := s.db.QueryRow(`SELECT config FROM users WHERE id = 1`).Scan(&configJSON)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			ttl, ttlErr := loadResponseHistoryTTL(s.db)
-			if ttlErr != nil {
-				fmt.Println("Failed to load response history TTL:", ttlErr)
-			} else {
-				defaultSettings.ResponseHistoryTTL = ttl
-			}
-			return defaultSettings, nil
-		}
-		return nil, fmt.Errorf("failed to load user settings: %w", err)
-	}
-
-	if !configJSON.Valid || configJSON.String == "" {
-		ttl, ttlErr := loadResponseHistoryTTL(s.db)
-		if ttlErr != nil {
-			fmt.Println("Failed to load response history TTL:", ttlErr)
-		} else {
-			defaultSettings.ResponseHistoryTTL = ttl
-		}
-		return defaultSettings, nil
-	}
-
-	var settings UserSettings
-	if err := json.Unmarshal([]byte(configJSON.String), &settings); err != nil {
-		return nil, fmt.Errorf("failed to parse user settings JSON: %w", err)
-	}
-
-	if settings.Theme == "" {
-		settings.Theme = defaultSettings.Theme
-	}
-	if settings.ResponseHistoryTTL < 1 {
-		settings.ResponseHistoryTTL = defaultSettings.ResponseHistoryTTL
-	}
-
-	ttl, ttlErr := loadResponseHistoryTTL(s.db)
-	if ttlErr != nil {
-		fmt.Println("Failed to load response history TTL:", ttlErr)
-	} else {
-		settings.ResponseHistoryTTL = ttl
-	}
-
-	return &settings, nil
-}
-
-func (s *UserService) SaveUserSettings(settings *UserSettings) error {
-	if settings == nil {
-		return fmt.Errorf("settings payload is required")
-	}
-	if settings.ResponseHistoryTTL < 1 {
-		return fmt.Errorf("response history TTL must be greater than zero")
-	}
-
-	data, err := json.Marshal(settings)
-	if err != nil {
-		return fmt.Errorf("failed to marshal settings: %w", err)
-	}
-
-	_, err = s.db.Exec(`
-		INSERT INTO users (id, config)
-		VALUES (1, ?)
-		ON CONFLICT(id) DO UPDATE SET config = excluded.config
-	`, string(data))
-	if err != nil {
-		return fmt.Errorf("failed to save user settings: %w", err)
-	}
-
-	if err := saveResponseHistoryTTL(s.db, settings.ResponseHistoryTTL); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (s *UserService) UpdateUserKeybinds(keybinds []Keybind) error {

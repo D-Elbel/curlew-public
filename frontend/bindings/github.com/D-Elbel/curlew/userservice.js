@@ -23,27 +23,6 @@ export function FetchUserKeybinds() {
 }
 
 /**
- * @returns {Promise<$models.UserSettings | null> & { cancel(): void }}
- */
-export function LoadUserSettings() {
-    let $resultPromise = /** @type {any} */($Call.ByID(2934528748));
-    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
-        return $$createType1($result);
-    }));
-    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
-    return $typingPromise;
-}
-
-/**
- * @param {$models.UserSettings | null} settings
- * @returns {Promise<void> & { cancel(): void }}
- */
-export function SaveUserSettings(settings) {
-    let $resultPromise = /** @type {any} */($Call.ByID(2808763573, settings));
-    return $resultPromise;
-}
-
-/**
  * @param {$models.Keybind[]} keybinds
  * @returns {Promise<void> & { cancel(): void }}
  */
@@ -51,7 +30,3 @@ export function UpdateUserKeybinds(keybinds) {
     let $resultPromise = /** @type {any} */($Call.ByID(935276461, keybinds));
     return $resultPromise;
 }
-
-// Private type creation functions
-const $$createType0 = $models.UserSettings.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);

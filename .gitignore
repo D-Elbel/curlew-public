@@ -8,3 +8,5 @@ data
 node_modules
 build
 AGENTS.md
+curlew.exe
+curlew_db.db

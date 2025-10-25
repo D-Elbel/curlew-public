@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS users
 (
-    id integer not null primary key,
-    config TEXT
+    id integer not null primary key
 );
 
-INSERT OR IGNORE INTO users (id, config) VALUES (1, NULL);
+INSERT OR IGNORE INTO users (id) VALUES (1);
