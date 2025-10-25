@@ -49,6 +49,19 @@ export function DeleteRequest(id) {
 
 /**
  * @param {number} requestID
+ * @returns {Promise<$models.Request> & { cancel(): void }}
+ */
+export function DuplicateRequest(requestID) {
+    let $resultPromise = /** @type {any} */($Call.ByID(456732318, requestID));
+    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
+        return $$createType1($result);
+    }));
+    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
+    return $typingPromise;
+}
+
+/**
+ * @param {number} requestID
  * @param {string} method
  * @param {string} requestUrl
  * @param {string} headersIn
@@ -69,7 +82,7 @@ export function ExecuteRequest(requestID, method, requestUrl, headersIn, body, b
 export function GetAllCollections() {
     let $resultPromise = /** @type {any} */($Call.ByID(668722804));
     let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
-        return $$createType1($result);
+        return $$createType2($result);
     }));
     $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
     return $typingPromise;
@@ -95,7 +108,7 @@ export function GetAllRequestsList() {
 export function GetRequest(id) {
     let $resultPromise = /** @type {any} */($Call.ByID(1989088877, id));
     let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
-        return $$createType2($result);
+        return $$createType1($result);
     }));
     $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
     return $typingPromise;
@@ -139,7 +152,7 @@ export function Init() {
 export function SaveRequest(collectionId, name, description, method, url, headers, body, bodyType, bodyFormat, auth, response) {
     let $resultPromise = /** @type {any} */($Call.ByID(1341307122, collectionId, name, description, method, url, headers, body, bodyType, bodyFormat, auth, response));
     let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
-        return $$createType2($result);
+        return $$createType1($result);
     }));
     $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
     return $typingPromise;
@@ -207,7 +220,7 @@ export function UpdateCollectionParent(collectionId, parentId) {
 export function UpdateRequest(id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response) {
     let $resultPromise = /** @type {any} */($Call.ByID(1380900686, id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response));
     let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
-        return $$createType2($result);
+        return $$createType1($result);
     }));
     $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
     return $typingPromise;
@@ -215,8 +228,8 @@ export function UpdateRequest(id, collectionId, name, description, method, reque
 
 // Private type creation functions
 const $$createType0 = $models.Collection.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.Request.createFrom;
-const $$createType3 = $Create.Array($$createType2);
+const $$createType1 = $models.Request.createFrom;
+const $$createType2 = $Create.Array($$createType0);
+const $$createType3 = $Create.Array($$createType1);
 const $$createType4 = $models.Response.createFrom;
 const $$createType5 = $Create.Array($$createType4);

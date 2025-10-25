@@ -6,7 +6,8 @@ import {
     SaveRequest,
     UpdateRequest,
     DeleteRequest,
-    DeleteCollection
+    DeleteCollection,
+    DuplicateRequest
 } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js"
 
 export const useRequestStore = create((set, get) => ({
@@ -51,6 +52,24 @@ export const useRequestStore = create((set, get) => ({
         set(state => ({
             requests: state.requests.filter(r => r.id !== id)
         }))
+    },
+
+    duplicateRequest: async (id) => {
+        const duplicated = await DuplicateRequest(id)
+        if (!duplicated || !duplicated.id) {
+            return null
+        }
+
+        set(state => {
+            const exists = state.requests.some(r => r.id === duplicated.id)
+            return {
+                requests: exists
+                    ? state.requests.map(r => (r.id === duplicated.id ? duplicated : r))
+                    : [...state.requests, duplicated]
+            }
+        })
+
+        return duplicated
     },
 
     deleteCollection: async (id) => {
