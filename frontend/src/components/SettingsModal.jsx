@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,25 +10,47 @@ import {
     SelectContent,
     SelectItem,
 } from "@/components/ui/select";
-import {
-    LoadUserSettings,
-    SaveUserSettings,
-} from "../../bindings/github.com/D-Elbel/curlew/appstateservice.js";
+import { SaveUserSettings } from "../../bindings/github.com/D-Elbel/curlew/appstateservice.js";
 import {
     FetchUserKeybinds,
     UpdateUserKeybinds,
 } from "../../bindings/github.com/D-Elbel/curlew/userservice.js";
 import { useHotkeys } from "@/services/HotkeysContext.jsx";
 import { useEnvarStore } from "@/stores/envarStore";
+import { useUserSettings } from "@/services/UserSettingsContext.jsx";
 
-export default function SettingsModal({ open, onOpenChange }) {
-    const [activeSection, setActiveSection] = useState("general");
-    const [settings, setSettings] = useState({
+const mapSettingsToFormState = (raw) => {
+    const fallback = {
         theme: "dark",
         defaultEnv: "",
         enableAnimations: true,
-        responseHistoryTTL: "5"
-    });
+        responseHistoryTTL: "5",
+    };
+    if (!raw || typeof raw !== "object") {
+        return fallback;
+    }
+    return {
+        theme: raw.theme || "dark",
+        defaultEnv: raw.defaultEnv || "",
+        enableAnimations:
+            typeof raw.enableAnimations === "boolean"
+                ? raw.enableAnimations
+                : fallback.enableAnimations,
+        responseHistoryTTL:
+            raw.responseHistoryTTL != null
+                ? String(raw.responseHistoryTTL)
+                : fallback.responseHistoryTTL,
+    };
+};
+
+export default function SettingsModal({ open, onOpenChange }) {
+    const [activeSection, setActiveSection] = useState("general");
+    const { refreshSettings, settings: globalSettings } = useUserSettings();
+    const formDefaults = useMemo(
+        () => mapSettingsToFormState(globalSettings),
+        [globalSettings],
+    );
+    const [settings, setSettings] = useState(formDefaults);
     const [keybinds, setKeybinds] = useState([]);
     const [ttlError, setTtlError] = useState("");
     const { reloadHotkeys } = useHotkeys();
@@ -38,29 +60,32 @@ export default function SettingsModal({ open, onOpenChange }) {
     const isDefaultEnvMissing = settings.defaultEnv && !environmentNames.includes(settings.defaultEnv);
 
     useEffect(() => {
-        if (open) {
-            (async () => {
-                try {
-                    const loadedSettings = await LoadUserSettings();
-                    setSettings({
-                        theme: loadedSettings?.theme ?? "dark",
-                        defaultEnv: loadedSettings?.defaultEnv ?? "",
-                        enableAnimations: loadedSettings?.enableAnimations ?? true,
-                        responseHistoryTTL:
-                            loadedSettings?.responseHistoryTTL != null
-                                ? String(loadedSettings.responseHistoryTTL)
-                                : "5",
-                    });
-                    setTtlError("");
-
-                    const loadedKeybinds = await FetchUserKeybinds();
-                    setKeybinds(loadedKeybinds);
-                } catch (err) {
-                    console.error("Failed to load settings", err);
-                }
-            })();
+        if (!open) {
+            return;
         }
-    }, [open]);
+        (async () => {
+            try {
+                const latestSettings = await refreshSettings();
+                setSettings(mapSettingsToFormState(latestSettings));
+                setTtlError("");
+            } catch (err) {
+                console.error("Failed to refresh user settings", err);
+            }
+            try {
+                const loadedKeybinds = await FetchUserKeybinds();
+                setKeybinds(loadedKeybinds);
+            } catch (err) {
+                console.error("Failed to load keybinds", err);
+            }
+        })();
+    }, [open, refreshSettings]);
+
+    useEffect(() => {
+        if (!open) {
+            setSettings(formDefaults);
+            setTtlError("");
+        }
+    }, [formDefaults, open]);
 
     const handleTtlChange = (value) => {
         setSettings((prev) => ({
@@ -91,10 +116,8 @@ export default function SettingsModal({ open, onOpenChange }) {
             });
             await UpdateUserKeybinds(keybinds);
             reloadHotkeys();
-            setSettings((prev) => ({
-                ...prev,
-                responseHistoryTTL: String(ttlNumber),
-            }));
+            const latest = await refreshSettings();
+            setSettings(mapSettingsToFormState(latest));
         } catch (err) {
             console.error("Failed to save settings", err);
         }

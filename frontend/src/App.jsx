@@ -27,9 +27,11 @@ import { AcknowledgeShutdown, LoadState, SaveState } from '../bindings/github.co
 import {Events} from "@wailsio/runtime";
 import TopToolbar from "@/components/TopToolbar.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"
+import { useUserSettings } from "@/services/UserSettingsContext.jsx";
 
 function App() {
     const { hotkeysMap } = useHotkeys();
+    const { settings: userSettings } = useUserSettings();
     const [tabs, setTabs] = useState([]);
     const [activeViews, setActiveViews] = useState([]);
     const [selectedTab, setSelectedTab] = useState('collections');
@@ -75,8 +77,17 @@ function App() {
     }, [tabs, activeViews, activeEnv]);
 
     useEffect(() => {
-        document.documentElement.classList.add("dark");
-    }, []);
+        if (typeof document === "undefined") {
+            return;
+        }
+        const root = document.documentElement;
+        if (!root) {
+            return;
+        }
+        const theme = (userSettings?.theme || "dark").toLowerCase();
+        root.classList.remove("dark", "light");
+        root.classList.add(theme === "light" ? "light" : "dark");
+    }, [userSettings?.theme]);
 
     useEffect(() => {
         async function fetchEnvars() {
