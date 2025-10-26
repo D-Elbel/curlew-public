@@ -16,6 +16,17 @@ body{
   font-family: 'MyFont';
 }
 
+html.animations-disabled *,
+html.animations-disabled *::before,
+html.animations-disabled *::after,
+body.animations-disabled *,
+body.animations-disabled *::before,
+body.animations-disabled *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;
