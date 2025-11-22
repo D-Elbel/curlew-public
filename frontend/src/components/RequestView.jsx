@@ -763,7 +763,8 @@ function RequestView({ request }) {
                 finalBody,
                 bodyType,
                 bodyFormat,
-                auth
+                auth,
+                activeEnv ?? ""
             );
             await handleResponse(result);
             if (resolvedRequestId) {

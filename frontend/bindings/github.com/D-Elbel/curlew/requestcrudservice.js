@@ -69,10 +69,11 @@ export function DuplicateRequest(requestID) {
  * @param {string} bodyType
  * @param {string} bodyFormat
  * @param {string} auth
+ * @param {string} environmentID
  * @returns {Promise<json$0.RawMessage> & { cancel(): void }}
  */
-export function ExecuteRequest(requestID, method, requestUrl, headersIn, body, bodyType, bodyFormat, auth) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1005662952, requestID, method, requestUrl, headersIn, body, bodyType, bodyFormat, auth));
+export function ExecuteRequest(requestID, method, requestUrl, headersIn, body, bodyType, bodyFormat, auth, environmentID) {
+    let $resultPromise = /** @type {any} */($Call.ByID(1005662952, requestID, method, requestUrl, headersIn, body, bodyType, bodyFormat, auth, environmentID));
     return $resultPromise;
 }
 

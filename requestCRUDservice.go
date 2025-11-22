@@ -15,8 +15,9 @@ import (
 )
 
 type RequestCRUDService struct {
-	db  *sql.DB
-	app *application.App
+	db            *sql.DB
+	app           *application.App
+	cookieService *CookieService
 }
 
 type Request struct {
@@ -188,7 +189,7 @@ func (s *RequestCRUDService) GetRequest(id int) Request {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			fmt.Println("No request found with ID %d", id)
+			fmt.Printf("No request found with ID %d\n", id)
 			return Request{}
 		}
 		return Request{}
@@ -313,7 +314,7 @@ func (s *RequestCRUDService) GetAllRequestsList() []Request {
 	return requests
 }
 
-func (s *RequestCRUDService) ExecuteRequest(requestID int, method string, requestUrl string, headersIn string, body string, bodyType string, bodyFormat string, auth string) (json.RawMessage, error) {
+func (s *RequestCRUDService) ExecuteRequest(requestID int, method string, requestUrl string, headersIn string, body string, bodyType string, bodyFormat string, auth string, environmentID string) (json.RawMessage, error) {
 	var bodyReader io.Reader
 
 	var headers []map[string]string
@@ -408,6 +409,18 @@ func (s *RequestCRUDService) ExecuteRequest(requestID int, method string, reques
 		httpReq.Header.Set("Authorization", auth)
 	}
 
+	var envPtr *string
+	if trimmed := strings.TrimSpace(environmentID); trimmed != "" {
+		env := trimmed
+		envPtr = &env
+	}
+
+	if s.cookieService != nil {
+		if err := s.cookieService.AttachCookiesToRequest(httpReq, envPtr); err != nil {
+			fmt.Println("Failed to attach cookies:", err)
+		}
+	}
+
 	client := http.DefaultClient
 	startTime := time.Now()
 	resp, err := client.Do(httpReq)
@@ -418,6 +431,12 @@ func (s *RequestCRUDService) ExecuteRequest(requestID int, method string, reques
 		return encodeError(err), err
 	}
 	defer resp.Body.Close()
+
+	if s.cookieService != nil {
+		if err := s.cookieService.CaptureResponseCookies(httpReq.URL, resp, envPtr); err != nil {
+			fmt.Println("Failed to persist response cookies:", err)
+		}
+	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {

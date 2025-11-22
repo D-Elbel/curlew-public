@@ -1,5 +1,6 @@
 import { useEnvarStore } from "@/stores/envarStore";
 import SettingsModal from "@/components/SettingsModal.jsx"
+import CookieManager from "@/components/CookieManager.jsx"
 import React, { useState } from "react";
 import {
     Select,
@@ -19,6 +20,7 @@ import { Check, Plus, Menu } from "lucide-react";
 
 function TopToolbar({ onTriggerCommand, onTriggerTabMenu }) {
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [cookieManagerOpen, setCookieManagerOpen] = useState(false);
     const envs = useEnvarStore((state) => state.environmentVariables);
     const activeEnv = useEnvarStore((state) => state.activeEnvironment);
     const setActiveEnv = useEnvarStore((state) => state.setActiveEnvironment);
@@ -35,6 +37,9 @@ function TopToolbar({ onTriggerCommand, onTriggerTabMenu }) {
                     <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
                         Settings
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setCookieManagerOpen(true)}>
+                        Cookies
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => console.log("Help clicked")}>
                         Help
                     </DropdownMenuItem>
@@ -44,8 +49,8 @@ function TopToolbar({ onTriggerCommand, onTriggerTabMenu }) {
                 </DropdownMenuContent>
             </DropdownMenu>
 
-
             <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+            <CookieManager open={cookieManagerOpen} onOpenChange={setCookieManagerOpen} />
 
             <div className="w-[10%]">
                 <DropdownMenu>

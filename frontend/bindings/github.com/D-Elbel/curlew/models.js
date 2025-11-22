@@ -59,6 +59,252 @@ export class Collection {
     }
 }
 
+export class Cookie {
+    /**
+     * Creates a new Cookie instance.
+     * @param {Partial<Cookie>} [$$source = {}] - The source object to create the Cookie.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["id"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | null | undefined}
+             */
+            this["environmentId"] = null;
+        }
+        if (!("domain" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["domain"] = "";
+        }
+        if (!("path" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["path"] = "";
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("value" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["value"] = "";
+        }
+        if (!("hostOnly" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["hostOnly"] = false;
+        }
+        if (!("httpOnly" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["httpOnly"] = false;
+        }
+        if (!("secure" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["secure"] = false;
+        }
+        if (!("session" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["session"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | null | undefined}
+             */
+            this["sameSite"] = null;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {time$0.Time | null | undefined}
+             */
+            this["expiresAt"] = null;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["extensions"] = [];
+        }
+        if (!("createdAt" in $$source)) {
+            /**
+             * @member
+             * @type {time$0.Time}
+             */
+            this["createdAt"] = null;
+        }
+        if (!("updatedAt" in $$source)) {
+            /**
+             * @member
+             * @type {time$0.Time}
+             */
+            this["updatedAt"] = null;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {time$0.Time | null | undefined}
+             */
+            this["lastAccessedAt"] = null;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Cookie instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {Cookie}
+     */
+    static createFrom($$source = {}) {
+        const $$createField12_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("extensions" in $$parsedSource) {
+            $$parsedSource["extensions"] = $$createField12_0($$parsedSource["extensions"]);
+        }
+        return new Cookie(/** @type {Partial<Cookie>} */($$parsedSource));
+    }
+}
+
+export class CookieInput {
+    /**
+     * Creates a new CookieInput instance.
+     * @param {Partial<CookieInput>} [$$source = {}] - The source object to create the CookieInput.
+     */
+    constructor($$source = {}) {
+        if (!("environmentId" in $$source)) {
+            /**
+             * @member
+             * @type {string | null}
+             */
+            this["environmentId"] = null;
+        }
+        if (!("domain" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["domain"] = "";
+        }
+        if (!("path" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["path"] = "";
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("value" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["value"] = "";
+        }
+        if (!("hostOnly" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["hostOnly"] = false;
+        }
+        if (!("httpOnly" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["httpOnly"] = false;
+        }
+        if (!("secure" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["secure"] = false;
+        }
+        if (!("session" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["session"] = false;
+        }
+        if (!("sameSite" in $$source)) {
+            /**
+             * @member
+             * @type {string | null}
+             */
+            this["sameSite"] = null;
+        }
+        if (!("expiresAt" in $$source)) {
+            /**
+             * @member
+             * @type {number | null}
+             */
+            this["expiresAt"] = null;
+        }
+        if (!("extensions" in $$source)) {
+            /**
+             * @member
+             * @type {string[]}
+             */
+            this["extensions"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CookieInput instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CookieInput}
+     */
+    static createFrom($$source = {}) {
+        const $$createField11_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("extensions" in $$parsedSource) {
+            $$parsedSource["extensions"] = $$createField11_0($$parsedSource["extensions"]);
+        }
+        return new CookieInput(/** @type {Partial<CookieInput>} */($$parsedSource));
+    }
+}
+
 export class Keybind {
     /**
      * Creates a new Keybind instance.
@@ -215,7 +461,7 @@ export class Request {
      * @returns {Request}
      */
     static createFrom($$source = {}) {
-        const $$createField13_0 = $$createType1;
+        const $$createField13_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("response" in $$parsedSource) {
             $$parsedSource["response"] = $$createField13_0($$parsedSource["response"]);
@@ -344,5 +590,6 @@ export class UserSettings {
 }
 
 // Private type creation functions
-const $$createType0 = Response.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = Response.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);

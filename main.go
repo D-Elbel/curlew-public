@@ -30,20 +30,22 @@ func main() {
 		log.Fatal(openDbErr)
 	}
 
-	files := []string{"sql/collections.sql", "sql/requests.sql", "sql/environments.sql", "sql/responses.sql", "sql/hotkey_binds.sql", "sql/app_state.sql", "sql/users.sql"}
+	files := []string{"sql/collections.sql", "sql/requests.sql", "sql/environments.sql", "sql/responses.sql", "sql/cookies.sql", "sql/hotkey_binds.sql", "sql/app_state.sql", "sql/users.sql"}
 	for _, file := range files {
 		if err := executeSQLFromFile(db, file); err != nil {
 			log.Fatalf("Failed to execute %s: %v", file, err)
 		}
 	}
 
-	crudService := &RequestCRUDService{db: db}
+	cookieService := &CookieService{db: db}
+	crudService := &RequestCRUDService{db: db, cookieService: cookieService}
 	envarService := &EnvarService{}
 	userService := &UserService{db: db}
 	fileService := &FileService{db: db}
 	appStateService := NewAppStateService(db)
 
 	crudService.Init()
+	cookieService.Init()
 
 	app := application.New(application.Options{
 		Name:        "curlew",
@@ -51,6 +53,7 @@ func main() {
 		Services: []application.Service{
 			application.NewService(fileService),
 			application.NewService(crudService),
+			application.NewService(cookieService),
 			application.NewService(envarService),
 			application.NewService(userService),
 			application.NewService(appStateService),
@@ -68,6 +71,7 @@ func main() {
 	crudService.app = app
 	envarService.app = app
 	userService.app = app
+	cookieService.app = app
 	envarService.ScanEnvars()
 
 	ctx, cancel := context.WithCancel(context.Background())
