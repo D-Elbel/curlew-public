@@ -5,14 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/fsnotify/fsnotify"
-	"github.com/wailsapp/wails/v3/pkg/application"
 	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type EnvarService struct {
@@ -42,7 +43,7 @@ func (s *EnvarService) InitEnvarWatch(ctx context.Context) {
 				if event.Has(fsnotify.Write) {
 					log.Println("modified file:", event.Name)
 					//TODO: Use an enum for these events, can share it with frontend
-					s.app.EmitEvent("ENVARS_UPDATED")
+					s.app.Event.Emit("ENVARS_UPDATED")
 				}
 			case err, ok := <-watcher.Errors:
 				if !ok {
