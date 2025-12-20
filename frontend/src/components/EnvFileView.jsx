@@ -66,38 +66,41 @@ export default function EnvFileView({ filename: initialFilename, isNew = false, 
 
     return (
         <div className="flex flex-col h-full">
-            <div className="flex justify-between items-center p-2 border-b border-gray-700">
+            <div className="flex items-center justify-between p-2 border-b border-gray-700">
                 <h2 className="text-lg font-semibold">
                     {isNew ? `New File` : filename}
                 </h2>
-                <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+                <Button
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={saving || !filename.trim()}
+                >
+                    {saving ? 'Saving...' : 'Save'}
+                </Button>
             </div>
-            <div className="flex-1 overflow-auto p-2 space-y-2">
-                {isNew && (
-                    <div>
-                        <label className="block text-sm text-gray-400 mb-1">File Name</label>
-                        <Input
-                            type="text"
-                            value={filename}
-                            onChange={(e) => setFilename(e.target.value)}
-                            placeholder="e.g. dev.env"
+            <div className="flex-1 min-h-0 p-2">
+                <div className="flex h-full flex-col gap-2">
+                    {isNew && (
+                        <div className="shrink-0">
+                            <label className="mb-1 block text-sm text-gray-400">File Name</label>
+                            <Input
+                                type="text"
+                                value={filename}
+                                onChange={(e) => setFilename(e.target.value)}
+                                placeholder="e.g. dev.env"
+                            />
+                        </div>
+                    )}
+                    <div className="flex-1 min-h-0 overflow-hidden border rounded mb-1">
+                        <CodeMirror
+                            value={content}
+                            theme={githubDark}
+                            extensions={[]}
+                            height="100%"
+                            className="h-full [&_.cm-editor]:h-full [&_.cm-scroller]:h-full [&_.cm-scroller]:overflow-auto [&_.cm-content]:pb-12"
+                            onChange={(value) => setContent(value)}
                         />
                     </div>
-                )}
-                <div className="overflow-auto border rounded">
-                    <CodeMirror
-                        value={content}
-
-                        extensions={[]}
-                        theme={githubDark}
-                        onChange={setContent}
-                    />
-                </div>
-                <div className="p-2 border-t border-gray-700 flex justify-end space-x-2">
-                    <Button variant="outline" size="sm" onClick={onClose} disabled={saving}>Cancel</Button>
-                    <Button size="sm" onClick={handleSave} disabled={saving || !filename.trim()}>
-                        {saving ? 'Saving...' : 'Save'}
-                    </Button>
                 </div>
             </div>
 
