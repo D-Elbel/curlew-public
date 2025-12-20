@@ -74,7 +74,7 @@ func main() {
 	defer cancel()
 	go envarService.InitEnvarWatch(ctx)
 
-	window := app.NewWebviewWindowWithOptions(application.WebviewWindowOptions{
+	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title: "Curlew",
 		Mac: application.MacWindow{
 			InvisibleTitleBarHeight: 50,
@@ -89,7 +89,7 @@ func main() {
 
 	window.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
 		//TODO: Enum this
-		app.EmitEvent("SHUTDOWN")
+		app.Event.Emit("SHUTDOWN")
 
 		select {
 		case <-appStateService.shutdownAck:
@@ -140,3 +140,4 @@ func executeSQLFromFile(db *sql.DB, filePath string) error {
 	_, err = db.Exec(string(content))
 	return err
 }
+

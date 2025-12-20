@@ -4,7 +4,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import {Call as $Call, Create as $Create} from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -12,44 +12,39 @@ import * as json$0 from "../../../encoding/json/models.js";
 
 /**
  * @param {string} filename
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function CreateEnvFile(filename) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1059427170, filename));
-    return $resultPromise;
+    return $Call.ByID(1059427170, filename);
 }
 
 /**
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function InitEnvarWatch() {
-    let $resultPromise = /** @type {any} */($Call.ByID(666796096));
-    return $resultPromise;
+    return $Call.ByID(666796096);
 }
 
 /**
  * @param {string} filename
- * @returns {Promise<string> & { cancel(): void }}
+ * @returns {$CancellablePromise<string>}
  */
 export function ReadEnvFile(filename) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1938492522, filename));
-    return $resultPromise;
+    return $Call.ByID(1938492522, filename);
 }
 
 /**
  * @param {string} filename
  * @param {string} content
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function SaveEnvFile(filename, content) {
-    let $resultPromise = /** @type {any} */($Call.ByID(2467134833, filename, content));
-    return $resultPromise;
+    return $Call.ByID(2467134833, filename, content);
 }
 
 /**
- * @returns {Promise<json$0.RawMessage> & { cancel(): void }}
+ * @returns {$CancellablePromise<json$0.RawMessage>}
  */
 export function ScanEnvars() {
-    let $resultPromise = /** @type {any} */($Call.ByID(1532249697));
-    return $resultPromise;
+    return $Call.ByID(1532249697);
 }

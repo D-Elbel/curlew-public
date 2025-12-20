@@ -4,7 +4,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import {Call as $Call, Create as $Create} from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -18,46 +18,38 @@ import * as $models from "./models.js";
  * @param {string} name
  * @param {string} description
  * @param {string | null} parentId
- * @returns {Promise<$models.Collection> & { cancel(): void }}
+ * @returns {$CancellablePromise<$models.Collection>}
  */
 export function CreateCollection(name, description, parentId) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1554286192, name, description, parentId));
-    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
+    return $Call.ByID(1554286192, name, description, parentId).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType0($result);
     }));
-    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
-    return $typingPromise;
 }
 
 /**
  * @param {string} collectionId
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function DeleteCollection(collectionId) {
-    let $resultPromise = /** @type {any} */($Call.ByID(3206062955, collectionId));
-    return $resultPromise;
+    return $Call.ByID(3206062955, collectionId);
 }
 
 /**
  * @param {number} id
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function DeleteRequest(id) {
-    let $resultPromise = /** @type {any} */($Call.ByID(2773160300, id));
-    return $resultPromise;
+    return $Call.ByID(2773160300, id);
 }
 
 /**
  * @param {number} requestID
- * @returns {Promise<$models.Request> & { cancel(): void }}
+ * @returns {$CancellablePromise<$models.Request>}
  */
 export function DuplicateRequest(requestID) {
-    let $resultPromise = /** @type {any} */($Call.ByID(456732318, requestID));
-    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
+    return $Call.ByID(456732318, requestID).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType1($result);
     }));
-    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
-    return $typingPromise;
 }
 
 /**
@@ -69,70 +61,56 @@ export function DuplicateRequest(requestID) {
  * @param {string} bodyType
  * @param {string} bodyFormat
  * @param {string} auth
- * @returns {Promise<json$0.RawMessage> & { cancel(): void }}
+ * @returns {$CancellablePromise<json$0.RawMessage>}
  */
 export function ExecuteRequest(requestID, method, requestUrl, headersIn, body, bodyType, bodyFormat, auth) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1005662952, requestID, method, requestUrl, headersIn, body, bodyType, bodyFormat, auth));
-    return $resultPromise;
+    return $Call.ByID(1005662952, requestID, method, requestUrl, headersIn, body, bodyType, bodyFormat, auth);
 }
 
 /**
- * @returns {Promise<$models.Collection[]> & { cancel(): void }}
+ * @returns {$CancellablePromise<$models.Collection[]>}
  */
 export function GetAllCollections() {
-    let $resultPromise = /** @type {any} */($Call.ByID(668722804));
-    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
+    return $Call.ByID(668722804).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType2($result);
     }));
-    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
-    return $typingPromise;
 }
 
 /**
  * TODO: lock down response object, replace "" with nulls etc
- * @returns {Promise<$models.Request[]> & { cancel(): void }}
+ * @returns {$CancellablePromise<$models.Request[]>}
  */
 export function GetAllRequestsList() {
-    let $resultPromise = /** @type {any} */($Call.ByID(1997938213));
-    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
+    return $Call.ByID(1997938213).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType3($result);
     }));
-    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
-    return $typingPromise;
 }
 
 /**
  * @param {number} id
- * @returns {Promise<$models.Request> & { cancel(): void }}
+ * @returns {$CancellablePromise<$models.Request>}
  */
 export function GetRequest(id) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1989088877, id));
-    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
+    return $Call.ByID(1989088877, id).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType1($result);
     }));
-    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
-    return $typingPromise;
 }
 
 /**
  * @param {number} requestID
- * @returns {Promise<$models.Response[]> & { cancel(): void }}
+ * @returns {$CancellablePromise<$models.Response[]>}
  */
 export function GetResponseHistory(requestID) {
-    let $resultPromise = /** @type {any} */($Call.ByID(3419080141, requestID));
-    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
+    return $Call.ByID(3419080141, requestID).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType5($result);
     }));
-    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
-    return $typingPromise;
 }
 
 /**
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function Init() {
-    let $resultPromise = /** @type {any} */($Call.ByID(293696986));
-    return $resultPromise;
+    return $Call.ByID(293696986);
 }
 
 /**
@@ -147,59 +125,50 @@ export function Init() {
  * @param {string} bodyFormat
  * @param {string} auth
  * @param {$models.Response | null} response
- * @returns {Promise<$models.Request> & { cancel(): void }}
+ * @returns {$CancellablePromise<$models.Request>}
  */
 export function SaveRequest(collectionId, name, description, method, url, headers, body, bodyType, bodyFormat, auth, response) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1341307122, collectionId, name, description, method, url, headers, body, bodyType, bodyFormat, auth, response));
-    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
+    return $Call.ByID(1341307122, collectionId, name, description, method, url, headers, body, bodyType, bodyFormat, auth, response).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType1($result);
     }));
-    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
-    return $typingPromise;
 }
 
 /**
  * @param {string} searchTerm
- * @returns {Promise<$models.Request[]> & { cancel(): void }}
+ * @returns {$CancellablePromise<$models.Request[]>}
  */
 export function SearchRequests(searchTerm) {
-    let $resultPromise = /** @type {any} */($Call.ByID(2775248826, searchTerm));
-    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
+    return $Call.ByID(2775248826, searchTerm).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType3($result);
     }));
-    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
-    return $typingPromise;
 }
 
 /**
  * @param {number} requestId
  * @param {string} collectionId
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function SetRequestCollection(requestId, collectionId) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1870864429, requestId, collectionId));
-    return $resultPromise;
+    return $Call.ByID(1870864429, requestId, collectionId);
 }
 
 /**
  * TODO: Implement this
  * @param {number} id
  * @param {number} sortOrder
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function SetRequestSortOrder(id, sortOrder) {
-    let $resultPromise = /** @type {any} */($Call.ByID(4050259431, id, sortOrder));
-    return $resultPromise;
+    return $Call.ByID(4050259431, id, sortOrder);
 }
 
 /**
  * @param {string} collectionId
  * @param {string | null} parentId
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function UpdateCollectionParent(collectionId, parentId) {
-    let $resultPromise = /** @type {any} */($Call.ByID(98912709, collectionId, parentId));
-    return $resultPromise;
+    return $Call.ByID(98912709, collectionId, parentId);
 }
 
 /**
@@ -215,15 +184,12 @@ export function UpdateCollectionParent(collectionId, parentId) {
  * @param {string} bodyFormat
  * @param {string} auth
  * @param {$models.Response | null} response
- * @returns {Promise<$models.Request> & { cancel(): void }}
+ * @returns {$CancellablePromise<$models.Request>}
  */
 export function UpdateRequest(id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1380900686, id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response));
-    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
+    return $Call.ByID(1380900686, id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType1($result);
     }));
-    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
-    return $typingPromise;
 }
 
 // Private type creation functions

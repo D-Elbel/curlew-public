@@ -182,7 +182,7 @@ func (s *RequestCRUDService) GetRequest(id int) Request {
 		auth           sql.NullString
 	)
 
-	s.app.EmitEvent("test")
+	s.app.Event.Emit("test")
 	err := s.db.QueryRow("SELECT requests.id, requests.collection_id, collections.name as 'collection_name', requests.name, requests.description, requests.method, requests.url, requests.headers, requests.body, requests.body_type, requests.body_format, requests.auth FROM requests LEFT JOIN collections ON collections.id = requests.collection_id WHERE requests.id = ?", id).
 		Scan(&requestID, &collectionID, &collectionName, &name, &description, &method, &url, &headers, &body, &bodyType, &bodyFormat, &auth)
 
@@ -1213,3 +1213,4 @@ func nullIntToPointer(ni sql.NullInt64) *int {
 	}
 	return nil
 }
+

@@ -4,7 +4,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import {Call as $Call, Create as $Create} from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -15,18 +15,16 @@ import * as json$0 from "../../../encoding/json/models.js";
 import * as $models from "./models.js";
 
 /**
- * @returns {Promise<json$0.RawMessage> & { cancel(): void }}
+ * @returns {$CancellablePromise<json$0.RawMessage>}
  */
 export function FetchUserKeybinds() {
-    let $resultPromise = /** @type {any} */($Call.ByID(1039586992));
-    return $resultPromise;
+    return $Call.ByID(1039586992);
 }
 
 /**
  * @param {$models.Keybind[]} keybinds
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function UpdateUserKeybinds(keybinds) {
-    let $resultPromise = /** @type {any} */($Call.ByID(935276461, keybinds));
-    return $resultPromise;
+    return $Call.ByID(935276461, keybinds);
 }
