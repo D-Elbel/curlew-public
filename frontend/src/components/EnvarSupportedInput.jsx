@@ -75,10 +75,7 @@ export function EnvarSupportedInput({ value = "", onChange, className, ...props 
                     const trimmedKey = key.trim()
                     const hasEnv = Object.prototype.hasOwnProperty.call(activeEnvVars, trimmedKey)
                     return (
-                        <span
-                            key={`env-${index}-${trimmedKey}`}
-                            className={hasEnv ? "text-yellow-500" : "text-red-500"}
-                        >
+                        <span key={`env-${index}-${trimmedKey}`}>
                             {part}
                         </span>
                     )
@@ -98,14 +95,14 @@ export function EnvarSupportedInput({ value = "", onChange, className, ...props 
                 <button
                     type="button"
                     onClick={() => setShowEnvDetails((prev) => !prev)}
-                    className="absolute -top-5 left-2 select-none rounded-t-md bg-slate-800 px-2 py-0.5 text-[10px] uppercase tracking-wide text-slate-100 shadow border border-slate-700"
+                    className="absolute -top-5 left-2 select-none px-2 py-0.5 text-[10px] uppercase tracking-wide border"
                 >
                     Env
                 </button>
             )}
 
             <div
-                className="absolute inset-0 whitespace-pre-wrap bg-black break-words px-3 py-1 z-50"
+                className="absolute inset-0 whitespace-pre-wrap break-words px-3 py-1 z-50"
                 aria-hidden
                 onMouseDown={() => inputRef.current?.focus()}
             >
@@ -116,7 +113,7 @@ export function EnvarSupportedInput({ value = "", onChange, className, ...props 
                 ref={inputRef}
                 value={value}
                 onChange={onChange}
-                className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-white px-3 py-1 outline-none z-50"
+                className="absolute inset-0 w-full h-full px-3 py-1 outline-none z-50"
                 style={{
                     WebkitTextFillColor: "transparent",
                     fontFamily: 'inherit',
@@ -129,18 +126,18 @@ export function EnvarSupportedInput({ value = "", onChange, className, ...props 
             />
 
             {showEnvDetails && envMatches.length > 0 && (
-                <div className="absolute left-0 top-full z-30 mt-2 w-64 rounded-md border border-slate-700 bg-slate-900/95 p-3 text-xs shadow-lg backdrop-blur">
-                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+                <div className="absolute left-0 top-full z-30 mt-2 w-64 border p-3 text-xs backdrop-blur">
+                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide">
                         Variables in use
                     </div>
                     <div className="max-h-56 overflow-auto">
                         <table className="w-full border-collapse">
                             <thead>
-                                <tr className="text-[10px] uppercase text-slate-400">
-                                    <th className="border-b border-slate-700 pb-1 text-left font-normal">
+                                <tr className="text-[10px] uppercase">
+                                    <th className="border-b pb-1 text-left font-normal">
                                         Key
                                     </th>
-                                    <th className="border-b border-slate-700 pb-1 text-left font-normal">
+                                    <th className="border-b pb-1 text-left font-normal">
                                         Value
                                     </th>
                                 </tr>
@@ -148,13 +145,13 @@ export function EnvarSupportedInput({ value = "", onChange, className, ...props 
                             <tbody>
                                 {envMatches.map(({ key, exists, value }) => (
                                     <tr key={key} className="align-top">
-                                        <td className="py-1 pr-2 font-mono text-[11px] text-slate-200">
+                                        <td className="py-1 pr-2 font-mono text-[11px]">
                                             {key}
                                         </td>
                                         <td
                                             className={cn(
-                                                "py-1 text-slate-300",
-                                                !exists && "text-red-300"
+                                                "py-1",
+                                                !exists && ""
                                             )}
                                         >
                                             {exists ? (

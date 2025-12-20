@@ -135,21 +135,13 @@ export default function SettingsModal({ open, onOpenChange }) {
                         <h2 className="text-lg font-semibold mb-4">Settings</h2>
                         <nav className="space-y-1">
                             <button
-                                className={`w-full text-left px-3 py-2 rounded ${
-                                    activeSection === "general"
-                                        ? "bg-primary text-primary-foreground"
-                                        : "hover:bg-accent"
-                                }`}
+                                className="w-full text-left px-3 py-2"
                                 onClick={() => setActiveSection("general")}
                             >
                                 General
                             </button>
                             <button
-                                className={`w-full text-left px-3 py-2 rounded ${
-                                    activeSection === "keybinds"
-                                        ? "bg-primary text-primary-foreground"
-                                        : "hover:bg-accent"
-                                }`}
+                                className="w-full text-left px-3 py-2"
                                 onClick={() => setActiveSection("keybinds")}
                             >
                                 Keybinds
@@ -169,7 +161,7 @@ export default function SettingsModal({ open, onOpenChange }) {
                                             onChange={(e) =>
                                                 setSettings({ ...settings, theme: e.target.value })
                                             }
-                                            className="w-64 border rounded p-2"
+                                            className="w-64 border p-2"
                                         >
                                             <option value="dark">Dark</option>
                                             <option value="light">Light</option>
@@ -240,9 +232,9 @@ export default function SettingsModal({ open, onOpenChange }) {
                                             className="w-64"
                                         />
                                         {ttlError ? (
-                                            <p className="text-xs text-red-400 mt-1">{ttlError}</p>
+                                            <p className="text-xs mt-1">{ttlError}</p>
                                         ) : (
-                                            <p className="text-xs text-gray-400 mt-1">
+                                            <p className="text-xs mt-1">
                                                 Oldest responses beyond this count are removed automatically.
                                             </p>
                                         )}

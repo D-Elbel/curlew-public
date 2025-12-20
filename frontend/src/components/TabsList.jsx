@@ -44,8 +44,9 @@ function TabsList({ tabs, activeTabIds, onTabSelect, onCloseTab, onNewTab, onNew
                         return (
                             <div
                                 key={tab.id}
-                                className={`tab flex select-none justify-between items-center px-2 cursor-pointer border-r hover:bg-gray-300 
-                                    ${isActive ? "border-b-2 border-slate-400" : ""}`}
+                                className={`tab flex select-none justify-between items-center px-2 cursor-pointer border-r ${
+                                    isActive ? "border-b-2" : ""
+                                }`}
                                 onClick={(e) => handleTabClick(e, tab)}
                             >
                                 <div className="flex items-center min-w-0 max-w-48 flex-1 truncate m-1 text-sm">
@@ -55,7 +56,7 @@ function TabsList({ tabs, activeTabIds, onTabSelect, onCloseTab, onNewTab, onNew
                                     </span>
                                 </div>
                                 <button
-                                    className="ml-2 text-red-500"
+                                    className="ml-2"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         onCloseTab(tab.id);
@@ -74,7 +75,7 @@ function TabsList({ tabs, activeTabIds, onTabSelect, onCloseTab, onNewTab, onNew
                     variant="ghost"
                     size="icon"
                     onClick={onNewTab}
-                    className="px-2 py-2 h-full hover:bg-gray-300 border-l"
+                    className="px-2 py-2 h-full border-l"
                     title="New Request"
                 >
                     <Plus className="h-4 w-4" />
@@ -84,7 +85,7 @@ function TabsList({ tabs, activeTabIds, onTabSelect, onCloseTab, onNewTab, onNew
                     variant="ghost"
                     size="icon"
                     onClick={onNewEnv}
-                    className="px-2 py-2 h-full hover:bg-gray-300 border-l"
+                    className="px-2 py-2 h-full border-l"
                     title="New Environment"
                 >
                     <FileText className="h-4 w-4" />

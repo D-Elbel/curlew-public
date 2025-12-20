@@ -24,11 +24,11 @@ function TopToolbar({ onTriggerCommand, onTriggerTabMenu }) {
     const setActiveEnv = useEnvarStore((state) => state.setActiveEnvironment);
 
     return (
-        <div className="w-full  py-1 flex justify-between items-center border-b bg-black/50 backdrop-blur-sm">
+        <div className="w-full py-1 flex justify-between items-center border-b backdrop-blur-sm">
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <button className="p-2 rounded hover:bg-gray-800">
-                        <Menu className="w-5 h-5 text-white" />
+                    <button className="p-2">
+                        <Menu className="w-5 h-5" />
                     </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-48">
@@ -50,7 +50,7 @@ function TopToolbar({ onTriggerCommand, onTriggerTabMenu }) {
             <div className="w-[10%]">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button className="flex items-center justify-between text-xs w-full px-3 py-2 rounded bg-black/30 border border-gray-700 text-white hover:bg-black/50 transition">
+                        <button className="flex items-center justify-between text-xs w-full px-3 py-2 border transition">
                             <span className="truncate">
                                 {activeEnv || "No environment"}
                             </span>
@@ -59,7 +59,7 @@ function TopToolbar({ onTriggerCommand, onTriggerTabMenu }) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-[120%] p-0">
                         <Command>
-                            <div className="flex items-center px-2 pt-2 pb-1 border-b border-gray-700">
+                            <div className="flex items-center px-2 pt-2 pb-1 border-b">
                                 <CommandInput placeholder="Search environments..." className="flex-1" />
                             
                             </div>
@@ -71,7 +71,7 @@ function TopToolbar({ onTriggerCommand, onTriggerTabMenu }) {
                                     className="flex items-center justify-between"
                                 >
                                     <span>No environment</span>
-                                    {!activeEnv && <Check className="w-4 h-4 text-green-500" />}
+                                    {!activeEnv && <Check className="w-4 h-4" />}
                                 </CommandItem>
                                 {envs.map((env) => (
                                     <CommandItem
@@ -81,7 +81,7 @@ function TopToolbar({ onTriggerCommand, onTriggerTabMenu }) {
                                         className="flex items-center justify-between"
                                     >
                                         <span>{env.env}</span>
-                                        {activeEnv === env.env && <Check className="w-4 h-4 text-green-500" />}
+                                        {activeEnv === env.env && <Check className="w-4 h-4" />}
                                     </CommandItem>
                                 ))}
                                 <CommandEmpty>No environments found.</CommandEmpty>

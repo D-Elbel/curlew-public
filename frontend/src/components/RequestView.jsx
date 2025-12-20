@@ -13,6 +13,13 @@ import { methodColourMap } from "../utils/constants.js";
 import { useRequestStore } from "@/stores/requestStore.js"
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog.js";
 import { Button } from "@/components/ui/button.js";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { useHotkeys } from "@/services/HotkeysContext.jsx";
 import hotkeys from "hotkeys-js";
 import { CommandDialog, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
@@ -53,7 +60,7 @@ const CollectionItem = ({
         paddingLeft: `${level * 1.25}rem`,
     };
     return (
-        <div style={style} className={`rounded mt-1`}>
+        <div style={style} className="mt-1">
             <div className="flex flex-row justify-between">
                 <div>
                     <p>| {collection.name}</p>
@@ -429,7 +436,7 @@ function RequestView({ request }) {
                     onSelect={() => handleSaveRequestToCollection(null)}
                 >
           <span className="inline-flex items-center">
-            <FolderClosed className="w-4 h-4 mr-2 text-slate-400" />
+            <FolderClosed className="w-4 h-4 mr-2" />
             No Folder
           </span>
                 </CommandItem>
@@ -442,7 +449,7 @@ function RequestView({ request }) {
                 className="inline-flex items-center"
                 style={{ paddingLeft: `${col.level * 16}px` }}
             >
-              <FolderClosed className="w-4 h-4 mr-2 text-blue-400" />
+              <FolderClosed className="w-4 h-4 mr-2" />
                 {col.name}
             </span>
                     </CommandItem>
@@ -838,42 +845,42 @@ function RequestView({ request }) {
                 <table className="w-full text-sm mb-2">
                     <thead>
                     <tr>
-                        <th className="border-b border-gray-700 p-2 text-left">
+                        <th className="border-b p-2 text-left">
                             Key
                         </th>
-                        <th className="border-b border-gray-700 p-2 text-left">
+                        <th className="border-b p-2 text-left">
                             Value
                         </th>
-                        <th className="border-b border-gray-700 p-2"></th>
+                        <th className="border-b p-2"></th>
                     </tr>
                     </thead>
                     <tbody>
                     {dataArray.map((row, i) => (
                         <tr key={i}>
-                            <td className="border-b border-gray-700 p-2">
+                            <td className="border-b p-2">
                                 <Input
                                     type="text"
                                     value={row.key}
                                     onChange={(e) =>
                                         handleChange(i, "key", e.target.value)
                                     }
-                                    className="bg-gray-800 border-gray-700 text-white"
+                                    className=""
                                 />
                             </td>
-                            <td className="border-b border-gray-700 p-2">
+                            <td className="border-b p-2">
                                 <Input
                                     type="text"
                                     value={row.value}
                                     onChange={(e) =>
                                         handleChange(i, "value", e.target.value)
                                     }
-                                    className="bg-gray-800 border-gray-700 text-white"
+                                    className=""
                                 />
                             </td>
-                            <td className="border-b border-gray-700 p-2">
+                            <td className="border-b p-2">
                                 <button
                                     onClick={() => removeRow(i)}
-                                    className="text-red-400 hover:text-red-500"
+                                    className=""
                                 >
                                     Remove
                                 </button>
@@ -884,7 +891,7 @@ function RequestView({ request }) {
                 </table>
                 <button
                     onClick={addRow}
-                    className="bg-gray-700 px-2 py-1 rounded hover:bg-gray-600 transition"
+                    className="px-2 py-1 transition"
                 >
                     + Add
                 </button>
@@ -944,44 +951,48 @@ function RequestView({ request }) {
                 <table className="w-full text-sm mb-2">
                     <thead>
                     <tr>
-                        <th className="border-b border-gray-700 p-2 text-left">
+                        <th className="border-b p-2 text-left">
                             Key
                         </th>
-                        <th className="border-b border-gray-700 p-2 text-left">
+                        <th className="border-b p-2 text-left">
                             Type
                         </th>
-                        <th className="border-b border-gray-700 p-2 text-left">
+                        <th className="border-b p-2 text-left">
                             Value / File
                         </th>
-                        <th className="border-b border-gray-700 p-2"></th>
+                        <th className="border-b p-2"></th>
                     </tr>
                     </thead>
                     <tbody>
                     {items.map((row, i) => (
                         <tr key={i}>
-                            <td className="border-b border-gray-700 p-2">
+                            <td className="border-b p-2">
                                 <Input
                                     type="text"
                                     value={row.key}
                                     onChange={(e) =>
                                         handleChange(i, { key: e.target.value })
                                     }
-                                    className="bg-gray-800 border-gray-700 text-white"
+                                    className=""
                                 />
                             </td>
-                            <td className="border-b border-gray-700 p-2">
-                                <select
+                            <td className="border-b p-2">
+                                <Select
                                     value={row.type}
-                                    onChange={(e) =>
-                                        handleChange(i, { type: e.target.value })
+                                    onValueChange={(value) =>
+                                        handleChange(i, { type: value })
                                     }
-                                    className="bg-gray-800 text-white rounded px-2 py-1"
                                 >
-                                    <option value="text">Text</option>
-                                    <option value="file">File</option>
-                                </select>
+                                    <SelectTrigger className="px-2 py-1">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="text">Text</SelectItem>
+                                        <SelectItem value="file">File</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </td>
-                            <td className="border-b border-gray-700 p-2">
+                            <td className="border-b p-2">
                                 {row.type === "file" ? (
                                     <div className="flex items-center gap-2">
                                         <input
@@ -991,7 +1002,7 @@ function RequestView({ request }) {
                                             }
                                         />
                                         {row.filename ? (
-                                            <span className="text-gray-400 text-xs">
+                                            <span className="text-xs">
                           {row.filename} ({row.mimeType || "type"})
                         </span>
                                         ) : null}
@@ -1003,14 +1014,14 @@ function RequestView({ request }) {
                                         onChange={(e) =>
                                             handleChange(i, { value: e.target.value })
                                         }
-                                        className="bg-gray-800 border-gray-700 text-white"
+                                        className=""
                                     />
                                 )}
                             </td>
-                            <td className="border-b border-gray-700 p-2">
+                            <td className="border-b p-2">
                                 <button
                                     onClick={() => removeRow(i)}
-                                    className="text-red-400 hover:text-red-500"
+                                    className=""
                                 >
                                     Remove
                                 </button>
@@ -1021,7 +1032,7 @@ function RequestView({ request }) {
                 </table>
                 <button
                     onClick={addRow}
-                    className="bg-gray-700 px-2 py-1 rounded hover:bg-gray-600 transition"
+                    className="px-2 py-1 transition"
                 >
                     + Add
                 </button>
@@ -1136,9 +1147,9 @@ function RequestView({ request }) {
     }, [bodyFormat, binaryFile?.mimeType]);
 
     return (
-        <div className="request-view flex flex-col max-h-[90vh] overflow-hidden p-2 rounded-lg shadow-lg w-full">
+        <div className="request-view flex flex-col max-h-[90vh] overflow-hidden p-2 w-full">
             {errorMessage && (
-                <div className="bg-red-900 text-white p-2 mb-4 rounded">
+                <div className="p-2 mb-4">
                     {errorMessage}
                 </div>
             )}
@@ -1160,10 +1171,10 @@ function RequestView({ request }) {
             </Dialog>
             <div className="flex-none flex justify-between items-center">
                 <div className="flex flex-row">
-                    <h2 className="text-sm mb-4 text-slate-400">
+                    <h2 className="text-sm mb-4">
                         {collectionName}
                     </h2>
-                    <span className="mr-1 ml-1 mb-4 text-slate-200">/</span>
+                    <span className="mr-1 ml-1 mb-4">/</span>
                     <h2
                         className="text-sm mb-4"
                         contentEditable
@@ -1178,7 +1189,7 @@ function RequestView({ request }) {
                     <button
                         onClick={handleSaveRequestToCollection}
                         disabled={isLoading}
-                        className="bg-gray-700 px-3 mr-1 py-1 rounded hover:bg-gray-600 transition disabled:opacity-50"
+                        className="px-3 mr-1 py-1 transition disabled:opacity-50"
                     >
                         {isLoading ? "Saving..." : "Save"}
                     </button>
@@ -1186,50 +1197,55 @@ function RequestView({ request }) {
             </div>
             <div className="flex-none flex flex-row">
                 <div className="flex space-x-3 mb-4 w-full mt-1">
-                    <select
-                        value={method}
-                        onChange={(e) => setMethod(e.target.value)}
-                        className={`border border-gray-700 rounded px-2 py-1 ${
-                            methodColourMap.get(method) || "text-white"
-                        }`}
-                    >
-                        {[
-                            "GET",
-                            "POST",
-                            "PUT",
-                            "DELETE",
-                            "PATCH",
-                            "HEAD",
-                            "OPTIONS",
-                        ].map((m) => (
-                            <option key={m} value={m} className={methodColourMap.get(m)}>
-                                {m}
-                            </option>
-                        ))}
-                    </select>
+                    <Select value={method} onValueChange={setMethod}>
+                        <SelectTrigger
+                            className={`border px-2 py-1 ${
+                                methodColourMap.get(method) || "text-white"
+                            }`}
+                        >
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {[
+                                "GET",
+                                "POST",
+                                "PUT",
+                                "DELETE",
+                                "PATCH",
+                                "HEAD",
+                                "OPTIONS",
+                            ].map((m) => (
+                                <SelectItem
+                                    key={m}
+                                    value={m}
+                                    className={methodColourMap.get(m)}
+                                >
+                                    {m}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <EnvarSupportedInput
                         type="text"
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
                         placeholder="Enter request URL"
-                        className="flex-grow border border-gray-700 rounded px-3 py-1"
+                        className="flex-grow border px-3 py-1"
                     />
                 </div>
                 <button
-                    className="text-white px-3 rounded transition"
+                    className="px-3 transition"
                     onClick={handleExecute}
                     disabled={isLoading}
                 >
                     {isLoading ? "Sending..." : "Send"}
                 </button>
             </div>
-            <div className="flex-none mb-4 border-b border-gray-700">
+            <div className="flex-none mb-4 border-b">
                 <button
                     onClick={() => setActiveTab("headers")}
                     className={`px-4 py-2 mr-2 focus:outline-none ${
-                        activeTab === "headers"
-                            ? "border-b-2 border-blue-500"
-                            : "text-gray-400"
+                        activeTab === "headers" ? "border-b-2" : ""
                     }`}
                 >
                     Headers
@@ -1237,9 +1253,7 @@ function RequestView({ request }) {
                 <button
                     onClick={() => setActiveTab("authorization")}
                     className={`px-4 py-2 mr-2 focus:outline-none ${
-                        activeTab === "authorization"
-                            ? "border-b-2 border-blue-500"
-                            : "text-gray-400"
+                        activeTab === "authorization" ? "border-b-2" : ""
                     }`}
                 >
                     Authorization
@@ -1247,30 +1261,29 @@ function RequestView({ request }) {
                 <button
                     onClick={() => setActiveTab("body")}
                     className={`px-4 py-2 focus:outline-none ${
-                        activeTab === "body"
-                            ? "border-b-2 border-blue-500"
-                            : "text-gray-400"
+                        activeTab === "body" ? "border-b-2" : ""
                     }`}
                 >
                     Body
                 </button>
             </div>
             {activeTab === "headers" && (
-                <div className="flex-none mb-4 p-3 rounded-lg shadow-md">
+                <div className="flex-none mb-4 p-3">
                     <h3 className="font-semibold mb-2">Headers</h3>
                     <div className="flex justify-between items-center mb-2">
-                        <select
-                            value={headerType}
-                            onChange={(e) => setHeaderType(e.target.value)}
-                            className="border border-gray-700 text-white rounded px-2 py-1"
-                        >
-                            <option value="none">None</option>
-                            <option value="keyvalue">Key/Value</option>
-                            <option value="raw">Raw (JSON)</option>
-                        </select>
+                        <Select value={headerType} onValueChange={setHeaderType}>
+                            <SelectTrigger className="border px-2 py-1">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">None</SelectItem>
+                                <SelectItem value="keyvalue">Key/Value</SelectItem>
+                                <SelectItem value="raw">Raw (JSON)</SelectItem>
+                            </SelectContent>
+                        </Select>
                         <button
                             onClick={() => setHeadersExpanded(!headersExpanded)}
-                            className="px-2 py-1 rounded hover:bg-gray-600 transition"
+                            className="px-2 py-1 transition"
                         >
                             {headersExpanded ? "Collapse" : "Expand"}
                         </button>
@@ -1281,7 +1294,7 @@ function RequestView({ request }) {
                             height={headersExpanded ? "150px" : "75px"}
                             extensions={[json()]}
                             theme={copilot}
-                            className="border border-gray-700 rounded w-full"
+                            className="border w-full"
                             onChange={(value) => setHeadersRaw(value)}
                         />
                     )}
@@ -1290,18 +1303,19 @@ function RequestView({ request }) {
                 </div>
             )}
             {activeTab === "authorization" && (
-                <div className="p-3 rounded-lg shadow-md">
+                <div className="p-3">
                     <h3 className="font-semibold mb-2">Authorization</h3>
-                    <select
-                        value={authType}
-                        onChange={(e) => setAuthType(e.target.value)}
-                        className="bg-gray-800 text-white rounded px-2 py-1 mb-4"
-                    >
-                        <option value="none">None</option>
-                        <option value="bearer">Bearer Token</option>
-                        <option value="basic">Basic Auth</option>
-                        <option value="apikey">API Key</option>
-                    </select>
+                    <Select value={authType} onValueChange={setAuthType}>
+                        <SelectTrigger className="px-2 py-1 mb-4">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="none">None</SelectItem>
+                            <SelectItem value="bearer">Bearer Token</SelectItem>
+                            <SelectItem value="basic">Basic Auth</SelectItem>
+                            <SelectItem value="apikey">API Key</SelectItem>
+                        </SelectContent>
+                    </Select>
                     {authType === "bearer" && (
                         <Input
                             placeholder="Enter Bearer Token"
@@ -1336,20 +1350,21 @@ function RequestView({ request }) {
                                 value={apiKeyValue}
                                 onChange={(e) => setApiKeyValue(e.target.value)}
                             />
-                            <select
-                                value={apiKeyAddTo}
-                                onChange={(e) => setApiKeyAddTo(e.target.value)}
-                                className="bg-gray-800 text-white rounded px-2 py-1"
-                            >
-                                <option value="headers">Add to Headers</option>
-                                <option value="query">Add to Query Params</option>
-                            </select>
+                            <Select value={apiKeyAddTo} onValueChange={setApiKeyAddTo}>
+                                <SelectTrigger className="px-2 py-1">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="headers">Add to Headers</SelectItem>
+                                    <SelectItem value="query">Add to Query Params</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     )}
                 </div>
             )}
             {activeTab === "body" && (
-                <div className="flex-none p-3 rounded-lg shadow-md">
+                <div className="flex-none p-3">
                     <h3 className="font-semibold mb-2">Body</h3>
                     <div className="flex flex-wrap gap-4 mb-4">
                         {[
@@ -1372,7 +1387,7 @@ function RequestView({ request }) {
                                     value={option.value}
                                     checked={bodyType === option.value}
                                     onChange={() => setBodyType(option.value)}
-                                    className="text-blue-500"
+                                    className=""
                                 />
                                 <span>{option.label}</span>
                             </label>
@@ -1383,19 +1398,20 @@ function RequestView({ request }) {
                         <div>
                             <div className="flex items-center mb-2 space-x-2">
                                 <span>Language:</span>
-                                <select
-                                    value={bodyFormat}
-                                    onChange={(e) => setBodyFormat(e.target.value)}
-                                    className="bg-gray-800 text-white rounded px-2 py-1"
-                                >
-                                    {["Text", "JavaScript", "JSON", "HTML", "XML"].map(
-                                        (lang) => (
-                                            <option key={lang} value={lang}>
-                                                {lang}
-                                            </option>
-                                        )
-                                    )}
-                                </select>
+                                <Select value={bodyFormat} onValueChange={setBodyFormat}>
+                                    <SelectTrigger className="px-2 py-1">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {["Text", "JavaScript", "JSON", "HTML", "XML"].map(
+                                            (lang) => (
+                                                <SelectItem key={lang} value={lang}>
+                                                    {lang}
+                                                </SelectItem>
+                                            )
+                                        )}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="flex items-center mb-2 justify-end">
                                 <button
@@ -1409,7 +1425,7 @@ function RequestView({ request }) {
                                             setBodyRaw(formatted);
                                         }
                                     }}
-                                    className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm transition"
+                                    className="px-3 py-1 text-sm transition"
                                 >
                                     Format Body
                                 </button>
@@ -1420,7 +1436,7 @@ function RequestView({ request }) {
                                     height="350px"
                                     extensions={[...getRequestBodyExtension()]}
                                     theme={copilot}
-                                    className="border border-gray-700 rounded w-full"
+                                    className="border w-full"
                                     onChange={setBodyRaw}
                                     basicSetup={{
                                         lineNumbers: true,
@@ -1435,14 +1451,14 @@ function RequestView({ request }) {
                     {bodyType === "graphql" && (
                         <div className="space-y-4">
                             <div>
-                                <p className="text-sm text-gray-300 mb-2">Query</p>
+                                <p className="text-sm mb-2">Query</p>
                                 <div className="max-h-48 overflow-auto">
                                     <CodeMirror
                                         value={graphqlQuery}
                                         height="180px"
                                         extensions={[javascript()]}
                                         theme={copilot}
-                                        className="border border-gray-700 rounded w-full"
+                                        className="border w-full"
                                         onChange={(value) => setGraphqlQuery(value)}
                                         basicSetup={{
                                             lineNumbers: true,
@@ -1453,7 +1469,7 @@ function RequestView({ request }) {
                                 </div>
                             </div>
                             <div>
-                                <p className="text-sm text-gray-300">
+                                <p className="text-sm">
                                     Variables (JSON)
                                 </p>
                                 <div className="max-h-48 overflow-auto">
@@ -1462,7 +1478,7 @@ function RequestView({ request }) {
                                         height="180px"
                                         extensions={[json()]}
                                         theme={copilot}
-                                        className="border border-gray-700 rounded w-full"
+                                        className="border w-full"
                                         onChange={(value) => setGraphqlVariables(value)}
                                         basicSetup={{
                                             lineNumbers: true,
@@ -1516,7 +1532,7 @@ function RequestView({ request }) {
                                 }}
                             />
                             {binaryFile?.filename ? (
-                                <div className="text-xs text-gray-400">
+                                <div className="text-xs">
                                     Selected: {binaryFile.filename} (
                                     {binaryFile.mimeType})
                                 </div>
@@ -1527,16 +1543,16 @@ function RequestView({ request }) {
             )}
 
             {(responseData || responseHistory.length > 0) && (
-                <div className="flex flex-col rounded-lg shadow-md w-full flex-1 overflow-hidden">
-                    <div className="flex-none border-b border-gray-700 flex items-center justify-between">
+                <div className="flex flex-col w-full flex-1 overflow-hidden">
+                    <div className="flex-none border-b flex items-center justify-between">
                         <div className="flex flex-row space-x-4 items-center justify-between w-full">
                             <div className="flex">
                                 <button
                                     onClick={() => setResponseTab("body")}
                                     className={`px-4 py-2 -mb-px ${
                                         responseTab === "body"
-                                            ? "border-b-2 border-blue-500"
-                                            : "text-gray-400"
+                                            ? "border-b-2"
+                                            : ""
                                     }`}
                                 >
                                     Body
@@ -1545,8 +1561,8 @@ function RequestView({ request }) {
                                     onClick={() => setResponseTab("headers")}
                                     className={`px-4 py-2 -mb-px ${
                                         responseTab === "headers"
-                                            ? "border-b-2 border-blue-500"
-                                            : "text-gray-400"
+                                            ? "border-b-2"
+                                            : ""
                                     }`}
                                 >
                                     Headers
@@ -1555,8 +1571,8 @@ function RequestView({ request }) {
                                     onClick={() => setResponseTab("history")}
                                     className={`px-4 py-2 -mb-px ${
                                         responseTab === "history"
-                                            ? "border-b-2 border-blue-500"
-                                            : "text-gray-400"
+                                            ? "border-b-2"
+                                            : ""
                                     }`}
                                 >
                                     History
@@ -1566,41 +1582,37 @@ function RequestView({ request }) {
                                 {latestResponse ? (
                                     <>
                                         <span
-                                            className={`px-2 py-1 rounded ${
-                                                latestResponse.statusCode >= 400
-                                                    ? "bg-red-500/20"
-                                                    : "bg-green-500/20"
-                                            }`}
+                                            className="px-2 py-1"
                                         >
                                             <strong>Status:</strong> {latestResponse.statusCode}
                                         </span>
-                                        <span className="text-gray-400">
+                                        <span>
                                             <strong>Time:</strong> {latestResponse.runtimeMS}
                                             ms
                                         </span>
                                         {latestResponseSizeKb && (
-                                            <span className="text-gray-400">
+                                            <span>
                                                 <strong>Size:</strong> {latestResponseSizeKb} KB
                                             </span>
                                         )}
                                         {latestResponse.createdAt && (
-                                            <span className="text-gray-500">
+                                            <span>
                                                 <strong>Received:</strong>{" "}
                                                 {new Date(latestResponse.createdAt).toLocaleString()}
                                             </span>
                                         )}
                                     </>
                                 ) : (
-                                    <span className="text-gray-400">No responses yet</span>
+                                    <span>No responses yet</span>
                                 )}
                             </div>
                         </div>
                     </div>
                     {responseTab === "body" && responseData ? (
                         <div className="flex-1 flex flex-col overflow-hidden">
-                            <div className="flex-none border-b border-gray-700 flex items-center justify-between">
+                            <div className="flex-none border-b flex items-center justify-between">
                                 {responseContentType && (
-                                    <div className="text-xs text-gray-400 px-4 py-2">
+                                    <div className="text-xs px-4 py-2">
                                         {responseContentType?.split?.(";")?.[0]}
                                     </div>
                                 )}
@@ -1642,23 +1654,23 @@ function RequestView({ request }) {
                     {responseTab === "history" && (
                         <div className="flex-1 p-4 overflow-auto space-y-3">
                             {responseHistory.length === 0 ? (
-                                <div className="text-sm text-gray-400">
+                                <div className="text-sm">
                                     No responses recorded yet for this request.
                                 </div>
                             ) : (
                                 <table className="w-full text-sm border-collapse">
                                     <thead>
-                                        <tr className="text-xs uppercase text-gray-400">
-                                            <th className="text-left font-normal border-b border-gray-700 pb-2">
+                                        <tr className="text-xs uppercase">
+                                            <th className="text-left font-normal border-b pb-2">
                                                 Time
                                             </th>
-                                            <th className="text-left font-normal border-b border-gray-700 pb-2">
+                                            <th className="text-left font-normal border-b pb-2">
                                                 Status
                                             </th>
-                                            <th className="text-left font-normal border-b border-gray-700 pb-2">
+                                            <th className="text-left font-normal border-b pb-2">
                                                 Duration
                                             </th>
-                                            <th className="text-left font-normal border-b border-gray-700 pb-2">
+                                            <th className="text-left font-normal border-b pb-2">
                                                 Body Size
                                             </th>
                                         </tr>
@@ -1674,23 +1686,19 @@ function RequestView({ request }) {
                                                     ? new Date(entry.createdAt).toLocaleString()
                                                     : "Unknown";
                                             return (
-                                                <tr key={entry.id} className="border-b border-gray-800/60">
-                                                    <td className="py-2 pr-4 text-gray-200">{createdAt}</td>
+                                                <tr key={entry.id} className="border-b">
+                                                    <td className="py-2 pr-4">{createdAt}</td>
                                                     <td className="py-2 pr-4">
                                                         <span
-                                                            className={`px-2 py-1 rounded text-xs ${
-                                                                entry.statusCode >= 400
-                                                                    ? "bg-red-500/20 text-red-200"
-                                                                    : "bg-green-500/20 text-green-200"
-                                                            }`}
+                                                            className="px-2 py-1 text-xs"
                                                         >
                                                             {entry.statusCode}
                                                         </span>
                                                     </td>
-                                                    <td className="py-2 pr-4 text-gray-300">
+                                                    <td className="py-2 pr-4">
                                                         {entry.runtimeMS} ms
                                                     </td>
-                                                    <td className="py-2 pr-4 text-gray-300">
+                                                    <td className="py-2 pr-4">
                                                         {sizeKb ? `${sizeKb} KB` : "—"}
                                                     </td>
                                                 </tr>

@@ -57,16 +57,16 @@ export default function EnvFileView({ filename: initialFilename, isNew = false, 
     };
 
     if (loading) {
-        return <div className="p-4 text-gray-300">Loading...</div>;
+        return <div className="p-4">Loading...</div>;
     }
 
     if (error) {
-        return <div className="p-4 text-red-500">Error: {error}</div>;
+        return <div className="p-4">Error: {error}</div>;
     }
 
     return (
         <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between p-2 border-b border-gray-700">
+            <div className="flex items-center justify-between p-2 border-b">
                 <h2 className="text-lg font-semibold">
                     {isNew ? `New File` : filename}
                 </h2>
@@ -82,7 +82,7 @@ export default function EnvFileView({ filename: initialFilename, isNew = false, 
                 <div className="flex h-full flex-col gap-2">
                     {isNew && (
                         <div className="shrink-0">
-                            <label className="mb-1 block text-sm text-gray-400">File Name</label>
+                            <label className="mb-1 block text-sm">File Name</label>
                             <Input
                                 type="text"
                                 value={filename}
@@ -91,7 +91,7 @@ export default function EnvFileView({ filename: initialFilename, isNew = false, 
                             />
                         </div>
                     )}
-                    <div className="flex-1 min-h-0 overflow-hidden border rounded mb-1">
+                    <div className="flex-1 min-h-0 overflow-hidden border mb-1">
                         <CodeMirror
                             value={content}
                             theme={githubDark}

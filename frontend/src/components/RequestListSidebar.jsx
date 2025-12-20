@@ -54,8 +54,8 @@ import {
 import hotkeys from "hotkeys-js";
 import { useHotkeys } from "@/services/HotkeysContext.jsx";
 import { useRequestStore } from "@/stores/requestStore.js";
-import { methodColourMap} from "@/utils/constants.js";
 import { buildCollectionTree } from "@/utils/collections.js";
+import { methodColourMap } from "@/utils/constants.js";
 
 const validUUIDRegex =
     /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -89,7 +89,7 @@ const DraggableRequest = ({ req, onDelete, onDuplicate, onRequestSelect, activeD
         <div
             ref={setNodeRef}
             style={style}
-            className={`group flex items-center h-6 text-sm hover:bg-slate-700/50 transition-colors ${
+            className={`group flex items-center h-6 text-sm transition-colors ${
                 isDragging ? "opacity-50" : ""
             }`}
             onPointerDown={(e) => e.stopPropagation()}
@@ -102,7 +102,7 @@ const DraggableRequest = ({ req, onDelete, onDuplicate, onRequestSelect, activeD
                 }}
             >
                 <div className="flex items-center min-w-0 flex-1">
-                    <File className="w-3 h-3 mr-1.5 text-slate-400 flex-shrink-0" />
+                    <File className="w-3 h-3 mr-1.5 flex-shrink-0" />
                     <span
                         className={`mr-1.5 font-mono text-[10px] font-semibold flex-shrink-0 ${methodColourMap.get(
                             req.method
@@ -110,7 +110,7 @@ const DraggableRequest = ({ req, onDelete, onDuplicate, onRequestSelect, activeD
                     >
                         {req.method?.toUpperCase() || "GET"}
                     </span>
-                    <span className="truncate text-slate-200">
+                    <span className="truncate">
                         {req.name || req.url || "Untitled Request"}
                     </span>
                 </div>
@@ -121,20 +121,20 @@ const DraggableRequest = ({ req, onDelete, onDuplicate, onRequestSelect, activeD
                         e.stopPropagation();
                         onDuplicate?.(req);
                     }}
-                    className="w-3 h-3 ml-1 text-slate-400 hover:text-slate-200 cursor-pointer"
+                    className="w-3 h-3 ml-1 cursor-pointer"
                 />
                 <Trash2
                     onClick={(e) => {
                         e.stopPropagation();
                         onDelete(req.id, req.name);
                     }}
-                    className="w-3 h-3 ml-1 text-slate-400 hover:text-red-400 cursor-pointer"
+                    className="w-3 h-3 ml-1 cursor-pointer"
                 />
                 <div
                     ref={setActivatorNodeRef}
                     {...listeners}
                     {...attributes}
-                    className="w-3 h-3 ml-1 cursor-move text-slate-500 hover:text-slate-300"
+                    className="w-3 h-3 ml-1 cursor-move"
                 >
                     <MoreHorizontal className="w-3 h-3" />
                 </div>
@@ -157,7 +157,7 @@ const RequestDropZone = ({ collectionId, index, isLast = false }) => {
         <div
             ref={setNodeRef}
             className={`h-1 transition-all duration-200 ${
-                isOver ? "h-2 bg-blue-500/50 rounded" : ""
+                isOver ? "h-2" : ""
             }`}
         />
     );
@@ -215,9 +215,7 @@ const CollectionItem = ({
             <Collapsible open={isOpen} onOpenChange={setIsOpen}>
                 <div
                     ref={droppableRef}
-                    className={`group flex items-center h-6 text-sm hover:bg-slate-700/50 transition-colors ${
-                        isOver ? "bg-blue-900/30 ring-1 ring-blue-500/50" : ""
-                    }`}
+                    className="group flex items-center h-6 text-sm transition-colors"
                 >
                     <CollapsibleTrigger
                         asChild
@@ -231,18 +229,18 @@ const CollectionItem = ({
                             <div className="w-3 h-3 mr-1 flex items-center justify-center">
                                 {hasChildren ? (
                                     isOpen ? (
-                                        <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
+                                        <ChevronDown className="w-2.5 h-2.5" />
                                     ) : (
-                                        <ChevronRight className="w-2.5 h-2.5 text-slate-400" />
+                                        <ChevronRight className="w-2.5 h-2.5" />
                                     )
                                 ) : null}
                             </div>
                             {isOpen ? (
-                                <FolderOpen className="w-3 h-3 mr-1.5 text-blue-400 flex-shrink-0" />
+                                <FolderOpen className="w-3 h-3 mr-1.5 flex-shrink-0" />
                             ) : (
-                                <FolderClosed className="w-3 h-3 mr-1.5 text-blue-400 flex-shrink-0" />
+                                <FolderClosed className="w-3 h-3 mr-1.5 flex-shrink-0" />
                             )}
-                            <span className="font-medium text-slate-200 truncate">
+                            <span className="font-medium truncate">
                                 {collection.name}
                             </span>
                         </div>
@@ -253,13 +251,13 @@ const CollectionItem = ({
                                 e.stopPropagation();
                                 onDeleteCollection(collection.id, collection.name);
                             }}
-                            className="w-3 h-3 ml-1 text-slate-400 hover:text-red-400 cursor-pointer"
+                            className="w-3 h-3 ml-1 cursor-pointer"
                         />
                         <div
                             ref={setActivatorNodeRef}
                             {...listeners}
                             {...attributes}
-                            className="w-3 h-3 ml-1 cursor-move text-slate-500 hover:text-slate-300"
+                            className="w-3 h-3 ml-1 cursor-move"
                         >
                             <MoreHorizontal className="w-3 h-3" />
                         </div>
@@ -323,18 +321,18 @@ const UncategorizedDroppable = ({ requests, ...props }) => {
 
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-            <div className="group flex items-center h-6 text-sm hover:bg-slate-700/50 transition-colors cursor-pointer">
+            <div className="group flex items-center h-6 text-sm transition-colors cursor-pointer">
                 <CollapsibleTrigger asChild className="flex-1 flex items-center">
                     <div className="flex items-center">
                         <div className="w-3 h-3 mr-1 flex items-center justify-center">
                             {isOpen ? (
-                                <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
+                                <ChevronDown className="w-2.5 h-2.5" />
                             ) : (
-                                <ChevronRight className="w-2.5 h-2.5 text-slate-400" />
+                                <ChevronRight className="w-2.5 h-2.5" />
                             )}
                         </div>
-                        <FolderClosed className="w-3 h-3 mr-1.5 text-slate-500 flex-shrink-0" />
-                        <span className="font-medium text-slate-300">
+                        <FolderClosed className="w-3 h-3 mr-1.5 flex-shrink-0" />
+                        <span className="font-medium">
                             Uncategorized ({requests.length})
                         </span>
                     </div>
@@ -342,9 +340,7 @@ const UncategorizedDroppable = ({ requests, ...props }) => {
             </div>
             <CollapsibleContent
                 ref={setNodeRef}
-                className={`space-y-0 transition-colors ${
-                    isOver ? "bg-blue-900/30 ring-1 ring-blue-500/50 rounded" : ""
-                }`}
+                className="space-y-0 transition-colors"
             >
                 <div style={{ paddingLeft: "16px" }}>
                     {sortedRequests.length > 0 && (
@@ -460,7 +456,7 @@ const ImportModal = ({ isOpen, onClose, onImport }) => {
                     </div>
                     <div className="flex items-center space-x-2"></div>
                     {importMethod === "file" && (
-                        <div className="rounded-lg">
+                        <div className="">
                             <div className="flex items-center gap-2">
                                 <input
                                     ref={fileInputRef}
@@ -471,7 +467,7 @@ const ImportModal = ({ isOpen, onClose, onImport }) => {
                                             handleFileSelect(e.target.files[0]);
                                         }
                                     }}
-                                    className="flex-1 block w-full text-sm file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:opacity-90"
+                                    className="flex-1 block w-full text-sm file:mr-4 file:py-2 file:px-3 file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:opacity-90"
                                 />
                                 <Button
                                     variant="outline"
@@ -529,15 +525,15 @@ const ImportModal = ({ isOpen, onClose, onImport }) => {
 };
 
 const Toolbar = ({ onNewCollection, onRefresh, onImport }) => (
-    <div className="flex items-center justify-between px-3 py-1.5 border-b ">
+    <div className="flex items-center justify-between px-3 py-1.5 border-b">
         <div className="flex items-center space-x-1">
-            <span className="text-sm font-medium ">Collections</span>
+            <span className="text-sm font-medium">Collections</span>
         </div>
         <div className="flex items-center space-x-1">
             <Button
                 size="sm"
                 variant="ghost"
-                className="h-6 w-6 p-0 hover:bg-slate-700"
+                className="h-6 w-6 p-0"
                 onClick={onImport}
                 title="Import Collection"
             >
@@ -546,7 +542,7 @@ const Toolbar = ({ onNewCollection, onRefresh, onImport }) => (
             <Button
                 size="sm"
                 variant="ghost"
-                className="h-6 w-6 p-0 hover:bg-slate-700"
+                className="h-6 w-6 p-0"
                 onClick={onNewCollection}
                 title="New Collection"
             >
@@ -555,7 +551,7 @@ const Toolbar = ({ onNewCollection, onRefresh, onImport }) => (
             <Button
                 size="sm"
                 variant="ghost"
-                className="h-6 w-6 p-0 hover:bg-slate-700"
+                className="h-6 w-6 p-0"
                 onClick={onRefresh}
                 title="Refresh"
             >
@@ -567,9 +563,9 @@ const Toolbar = ({ onNewCollection, onRefresh, onImport }) => (
 
 const SearchBar = ({ value, onChange }) => (
     <div className="relative px-3 py-2">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-3 h-3 text-slate-400" />
+        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-3 h-3" />
         <Input
-            className="h-7 pl-6 text-sm bg-slate-800 border-slate-600 focus:border-blue-500"
+            className="h-7 pl-6 text-sm"
             placeholder="Search..."
             value={value}
             onChange={(e) => onChange(e.target.value)}
@@ -813,9 +809,9 @@ export default function RequestListSidebar({
                         </div>
                         <DragOverlay>
                             {activeDragId && (
-                                <div className="flex items-center h-6 px-2 bg-slate-800 rounded shadow-lg border border-slate-600">
-                                    <File className="w-3 h-3 mr-1.5 text-slate-400" />
-                                    <span className="text-sm text-slate-200">
+                                <div className="flex items-center h-6 px-2 border">
+                                    <File className="w-3 h-3 mr-1.5" />
+                                    <span className="text-sm">
                                         {activeDragItem?.name}
                                     </span>
                                 </div>
@@ -826,15 +822,15 @@ export default function RequestListSidebar({
 
                 {/* Create Collection Dialog */}
                 <Dialog open={isDialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogContent className="bg-slate-800 border-slate-600">
+                    <DialogContent className="">
                         <DialogHeader>
-                            <DialogTitle className="text-slate-200">
+                            <DialogTitle className="">
                                 Create Collection
                             </DialogTitle>
                         </DialogHeader>
                         <div className="pt-2">
                             <Input
-                                className="bg-slate-700 border-slate-600 text-slate-200"
+                                className=""
                                 placeholder="Collection Name"
                                 value={newCollectionName}
                                 onChange={(e) => setNewCollectionName(e.target.value)}
@@ -857,15 +853,15 @@ export default function RequestListSidebar({
     };
 
     const renderEnvironmentsTab = () => (
-        <div className="flex flex-col h-full ">
-            <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-700">
-                <span className="text-sm font-medium text-slate-300">
+        <div className="flex flex-col h-full">
+            <div className="flex items-center justify-between px-3 py-1.5 border-b">
+                <span className="text-sm font-medium">
                     Environments
                 </span>
                 <Button
                     size="sm"
                     variant="ghost"
-                    className="h-6 w-6 p-0 hover:bg-slate-700"
+                    className="h-6 w-6 p-0"
                     onClick={() => setIsNewFileOpen(true)}
                 >
                     <Plus className="w-3 h-3" />
@@ -875,14 +871,14 @@ export default function RequestListSidebar({
                 {envs.map((env) => (
                     <div
                         key={env.env}
-                        className="flex items-center justify-between h-6 px-2 text-sm hover:bg-slate-700/50 rounded cursor-pointer"
+                        className="flex items-center justify-between h-6 px-2 text-sm cursor-pointer"
                         onClick={() => onEnvSelect(env.env, false)}
                     >
                         <div className="flex items-center min-w-0 flex-1">
-                            <Globe className="w-3 h-3 mr-1.5 text-green-400 flex-shrink-0" />
+                            <Globe className="w-3 h-3 mr-1.5 flex-shrink-0" />
                             <span className="truncate">{env.env}</span>
                         </div>
-                        <span className="text-slate-400 ml-2">
+                        <span className="ml-2">
                             {Object.keys(env.variables).length}
                         </span>
                     </div>
@@ -890,15 +886,15 @@ export default function RequestListSidebar({
             </div>
 
             <Dialog open={isNewFileOpen} onOpenChange={setIsNewFileOpen}>
-                <DialogContent className="bg-slate-800 border-slate-600">
+                <DialogContent className="">
                     <DialogHeader>
-                        <DialogTitle className="text-slate-200">
+                        <DialogTitle className="">
                             Create Environment File
                         </DialogTitle>
                     </DialogHeader>
                     <div className="pt-2">
                         <Input
-                            className="bg-slate-700 border-slate-600 text-slate-200"
+                            className=""
                             placeholder="Filename"
                             value={newFileName}
                             onChange={(e) => setNewFileName(e.target.value)}

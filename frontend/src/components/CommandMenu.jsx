@@ -73,7 +73,7 @@ export default function CommandMenu({ onSelect }) {
         const parts = text.split(regex)
         return parts.map((part, i) =>
             regex.test(part)
-                ? <mark key={i} className="bg-red-300 rounded px-1">{part}</mark>
+                ? <mark key={i} className="px-1">{part}</mark>
                 : part
         )
     }
@@ -105,14 +105,14 @@ export default function CommandMenu({ onSelect }) {
                                 >
                                     <div className="flex items-center gap-2">
                                         <span className={`text-sm font-medium ${methodColourMap.get(req.method)}`}>{req.method}
-                                        </span><span className="text-xs text-gray-500">{highlightMatch(req.name || '', searchTerm)}</span>
+                                        </span><span className="text-xs">{highlightMatch(req.name || '', searchTerm)}</span>
                                     </div>
                                     <div className="text-sm font-semibold">{highlightMatch(req.url || '', searchTerm)}</div>
                                     {req.description && (
-                                        <div className="text-xs text-gray-500 italic">{highlightMatch(req.description, searchTerm)}</div>
+                                        <div className="text-xs italic">{highlightMatch(req.description, searchTerm)}</div>
                                     )}
                                     {req.body && searchTerm && req.body.toLowerCase().includes(searchTerm.toLowerCase()) && (
-                                        <div className="text-xs text-gray-400 truncate w-full">
+                                        <div className="text-xs truncate w-full">
                                             {highlightMatch(req.body, searchTerm)}
                                         </div>
                                     )}
