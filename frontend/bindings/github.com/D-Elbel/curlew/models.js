@@ -4,7 +4,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import {Create as $Create} from "@wailsio/runtime";
+import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -203,7 +203,7 @@ export class Request {
              * @member
              * @type {Response | null | undefined}
              */
-            this["response"] = null;
+            this["response"] = undefined;
         }
 
         Object.assign(this, $$source);
@@ -277,7 +277,7 @@ export class Response {
              * @member
              * @type {time$0.Time | null | undefined}
              */
-            this["createdAt"] = null;
+            this["createdAt"] = undefined;
         }
 
         Object.assign(this, $$source);

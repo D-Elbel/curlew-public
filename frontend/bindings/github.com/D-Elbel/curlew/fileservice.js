@@ -4,22 +4,20 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import {Call as $Call, Create as $Create} from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 /**
  * @param {string} jsonContent
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function ImportPostmanCollection(jsonContent) {
-    let $resultPromise = /** @type {any} */($Call.ByID(2450317308, jsonContent));
-    return $resultPromise;
+    return $Call.ByID(2450317308, jsonContent);
 }
 
 /**
  * @param {string} rawExportJSON
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function ParsePostmanV21Collection(rawExportJSON) {
-    let $resultPromise = /** @type {any} */($Call.ByID(1476867943, rawExportJSON));
-    return $resultPromise;
+    return $Call.ByID(1476867943, rawExportJSON);
 }

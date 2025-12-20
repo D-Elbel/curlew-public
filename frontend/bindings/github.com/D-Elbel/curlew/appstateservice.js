@@ -4,56 +4,49 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import {Call as $Call, Create as $Create} from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function AcknowledgeShutdown() {
-    let $resultPromise = /** @type {any} */($Call.ByID(3290647209));
-    return $resultPromise;
+    return $Call.ByID(3290647209);
 }
 
 /**
- * @returns {Promise<string> & { cancel(): void }}
+ * @returns {$CancellablePromise<string>}
  */
 export function LoadState() {
-    let $resultPromise = /** @type {any} */($Call.ByID(1807414826));
-    return $resultPromise;
+    return $Call.ByID(1807414826);
 }
 
 /**
- * @returns {Promise<$models.UserSettings | null> & { cancel(): void }}
+ * @returns {$CancellablePromise<$models.UserSettings | null>}
  */
 export function LoadUserSettings() {
-    let $resultPromise = /** @type {any} */($Call.ByID(3300701507));
-    let $typingPromise = /** @type {any} */($resultPromise.then(($result) => {
+    return $Call.ByID(3300701507).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType1($result);
     }));
-    $typingPromise.cancel = $resultPromise.cancel.bind($resultPromise);
-    return $typingPromise;
 }
 
 /**
  * @param {string} jsonBlob
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function SaveState(jsonBlob) {
-    let $resultPromise = /** @type {any} */($Call.ByID(524165709, jsonBlob));
-    return $resultPromise;
+    return $Call.ByID(524165709, jsonBlob);
 }
 
 /**
  * @param {$models.UserSettings | null} settings
- * @returns {Promise<void> & { cancel(): void }}
+ * @returns {$CancellablePromise<void>}
  */
 export function SaveUserSettings(settings) {
-    let $resultPromise = /** @type {any} */($Call.ByID(555307638, settings));
-    return $resultPromise;
+    return $Call.ByID(555307638, settings);
 }
 
 // Private type creation functions
