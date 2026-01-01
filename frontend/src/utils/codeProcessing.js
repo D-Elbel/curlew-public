@@ -27,7 +27,7 @@ export const formatCode = (code, contentType, bodyFormat) => {
         const type = safeString(contentType).toLowerCase();
         const format = bodyFormat || '';
         console.log("formatcode type", type, format)
-        if (type.includes('json') || format === 'JSON') {
+        if (type?.includes('json') || format === 'JSON') {
             try {
                 const parsed = JSON.parse(code);
                 return JSON.stringify(parsed, null, 2);
@@ -42,7 +42,7 @@ export const formatCode = (code, contentType, bodyFormat) => {
             }
         }
 
-        if (type.includes('javascript') || format === 'JavaScript') {
+        if (type?.includes('javascript') || format === 'JavaScript') {
             return prettier.format(code, {
                 parser: 'babel',
                 plugins: [parserBabel],
@@ -54,7 +54,7 @@ export const formatCode = (code, contentType, bodyFormat) => {
             });
         }
 
-        if (type.includes('html') || format === 'HTML') {
+        if (type?.includes('html') || format === 'HTML') {
             return prettier.format(code, {
                 parser: 'html',
                 plugins: [parserHtml],
@@ -64,7 +64,7 @@ export const formatCode = (code, contentType, bodyFormat) => {
             });
         }
 
-        if (type.includes('css') || format === 'CSS') {
+        if (type?.includes('css') || format === 'CSS') {
             return prettier.format(code, {
                 parser: 'css',
                 plugins: [parserPostcss],
@@ -84,7 +84,7 @@ export const formatContent = (content, contentType) => {
     console.log(contentType)
     const type = contentType[0]?.toLowerCase() || '';
 
-    if (type.includes('json') || type.includes('application/json')) {
+    if (type?.includes('json') || type?.includes('application/json')) {
         try {
             if (typeof content === 'string') {
                 const parsed = JSON.parse(content);
@@ -97,7 +97,7 @@ export const formatContent = (content, contentType) => {
         }
     }
 
-    if (type.includes('html') || type.includes('xml')) {
+    if (type?.includes('html') || type?.includes('xml')) {
         if (typeof content === 'string' && content.length > 0) {
             return content
                 .replace(/></g, '>\n<')
@@ -120,19 +120,19 @@ export const getLanguageExtension = (contentType, content) => {
 
     const type = contentType?.toLowerCase || '';
 
-    if (type.includes('json') || type.includes('application/json')) {
+    if (type?.includes('json') || type?.includes('application/json')) {
         return [json()];
     }
-    if (type.includes('html') || type.includes('text/html')) {
+    if (type?.includes('html') || type?.includes('text/html')) {
         return [html()];
     }
-    if (type.includes('xml') || type.includes('application/xml') || type.includes('text/xml')) {
+    if (type?.includes('xml') || type?.includes('application/xml') || type?.includes('text/xml')) {
         return [xml()];
     }
-    if (type.includes('javascript') || type.includes('application/javascript') || type.includes('text/javascript')) {
+    if (type?.includes('javascript') || type?.includes('application/javascript') || type?.includes('text/javascript')) {
         return [javascript()];
     }
-    if (type.includes('css') || type.includes('text/css')) {
+    if (type?.includes('css') || type?.includes('text/css')) {
         return [css()];
     }
 

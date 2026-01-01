@@ -1,11 +1,11 @@
-// RequestView.jsx
+﻿// RequestView.jsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
 import { html } from "@codemirror/lang-html";
 import { xml } from "@codemirror/lang-xml";
 import { javascript } from "@codemirror/lang-javascript";
-import { GetResponseHistory } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js";
+import { ExecuteRequest, GetRequest, GetResponseHistory } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js";
 import { copilot } from "@uiw/codemirror-theme-copilot"
 import { Input } from "@/components/ui/input.js";
 import { EnvarSupportedInput } from "@/components/EnvarSupportedInput.jsx";
@@ -21,7 +21,6 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useHotkeys } from "@/services/HotkeysContext.jsx";
-import { executeHttpRequest } from "@/services/requestExecutor.js";
 import hotkeys from "hotkeys-js";
 import { CommandDialog, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
 import { FolderClosed } from "lucide-react";
@@ -29,8 +28,6 @@ import { formatCode, formatContent, getLanguageExtension } from '../utils/codePr
 import { buildCollectionTree } from "../utils/collections.js"
 
 import { useEnvarStore } from "@/stores/envarStore";
-import { query as queryDb } from "@/services/database.js";
-import { requestQueries } from "@/services/queries.js";
 
 const applyEnvVars = (text, envs, activeEnv) => {
     if (!text || typeof text !== 'string') {
@@ -52,17 +49,6 @@ const applyEnvVars = (text, envs, activeEnv) => {
         );
         return match;
     });
-};
-
-const toNumberSafe = (value, fallback = 0) => {
-    if (typeof value === "number") return value;
-    if (typeof value === "string" && value.trim() !== "") {
-        const parsed = Number(value);
-        if (!Number.isNaN(parsed)) {
-            return parsed;
-        }
-    }
-    return fallback;
 };
 
 const CollectionItem = ({
@@ -183,55 +169,6 @@ function RequestView({ request }) {
         }
     }, []);
 
-    const fetchRequestById = useCallback(async (id) => {
-        const requestResult = await queryDb({
-            sql: requestQueries.getById,
-            params: [id],
-        });
-        const row = requestResult?.rows?.[0];
-        if (!row) {
-            return null;
-        }
-
-        let latestResponse = null;
-        try {
-            const responseResult = await queryDb({
-                sql: requestQueries.getLatestResponse,
-                params: [id],
-            });
-            const respRow = responseResult?.rows?.[0];
-            if (respRow) {
-                latestResponse = {
-                    id: toNumberSafe(respRow.id),
-                    statusCode: toNumberSafe(respRow.statusCode),
-                    headers: respRow.headers ?? "",
-                    body: respRow.body ?? "",
-                    runtimeMS: toNumberSafe(respRow.runtimeMS),
-                    requestID: toNumberSafe(respRow.requestId),
-                    createdAt: respRow.createdAt,
-                };
-            }
-        } catch (err) {
-            console.error("Failed to load latest response via DB:", err);
-        }
-
-        return {
-            id: toNumberSafe(row.id),
-            collectionId: row.collectionId || null,
-            collectionName: row.collectionName || "",
-            name: row.name || "Untitled Request",
-            description: row.description || "",
-            method: row.method || "GET",
-            url: row.url || "",
-            headers: row.headers || "{}",
-            body: row.body || "",
-            bodyType: row.bodyType || "none",
-            bodyFormat: row.bodyFormat || "JSON",
-            auth: row.auth || "",
-            response: latestResponse,
-        };
-    }, []);
-
     useEffect(() => {
         const fn = (e) => {
             e.preventDefault();
@@ -247,18 +184,14 @@ function RequestView({ request }) {
         }
         (async () => {
             try {
-                const fetched = await fetchRequestById(request.id);
-                if (fetched) {
-                    setFullRequest(fetched);
-                } else {
-                    setErrorMessage("Failed to fetch request details.");
-                }
+                const fetched = await GetRequest(request.id);
+                setFullRequest(fetched);
             } catch (e) {
                 console.error(e);
                 setErrorMessage("Failed to fetch request details.");
             }
         })();
-    }, [request?.id, request.isNew, fetchRequestById]);
+    }, [request?.id, request.isNew]);
 
     useEffect(() => {
         if (resolvedRequestId) {
@@ -829,15 +762,16 @@ function RequestView({ request }) {
                     finalBody = "";
             }
 
-            const result = await executeHttpRequest({
+            const result = await ExecuteRequest(
+                resolvedRequestId || 0,
                 method,
-                url: finalUrl,
-                headers: finalHeaders,
-                body: finalBody,
+                finalUrl,
+                finalHeaders,
+                finalBody,
                 bodyType,
                 bodyFormat,
-                auth,
-            });
+                auth
+            );
             await handleResponse(result);
             if (resolvedRequestId) {
                 await loadResponseHistory(resolvedRequestId);
@@ -1765,7 +1699,7 @@ function RequestView({ request }) {
                                                         {entry.runtimeMS} ms
                                                     </td>
                                                     <td className="py-2 pr-4">
-                                                        {sizeKb ? `${sizeKb} KB` : "—"}
+                                                        {sizeKb ? `${sizeKb} KB` : "â€”"}
                                                     </td>
                                                 </tr>
                                             );

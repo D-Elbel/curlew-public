@@ -59,6 +59,19 @@ export class Collection {
     }
 }
 
+/**
+ * @readonly
+ * @enum {string}
+ */
+export const DBTarget = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    DBMain: "main",
+};
+
 export class Keybind {
     /**
      * Creates a new Keybind instance.
@@ -294,6 +307,112 @@ export class Response {
     }
 }
 
+export class SQLRequest {
+    /**
+     * Creates a new SQLRequest instance.
+     * @param {Partial<SQLRequest>} [$$source = {}] - The source object to create the SQLRequest.
+     */
+    constructor($$source = {}) {
+        if (!("db" in $$source)) {
+            /**
+             * @member
+             * @type {DBTarget}
+             */
+            this["db"] = DBTarget.$zero;
+        }
+        if (!("sql" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["sql"] = "";
+        }
+        if (!("params" in $$source)) {
+            /**
+             * @member
+             * @type {any[]}
+             */
+            this["params"] = [];
+        }
+        if (!("maxRows" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["maxRows"] = 0;
+        }
+        if (!("readOnly" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["readOnly"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SQLRequest instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SQLRequest}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("params" in $$parsedSource) {
+            $$parsedSource["params"] = $$createField2_0($$parsedSource["params"]);
+        }
+        return new SQLRequest(/** @type {Partial<SQLRequest>} */($$parsedSource));
+    }
+}
+
+export class SQLResponse {
+    /**
+     * Creates a new SQLResponse instance.
+     * @param {Partial<SQLResponse>} [$$source = {}] - The source object to create the SQLResponse.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {{ [_: string]: any }[] | undefined}
+             */
+            this["rows"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["rowsAffected"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["lastInsertId"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SQLResponse instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SQLResponse}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("rows" in $$parsedSource) {
+            $$parsedSource["rows"] = $$createField0_0($$parsedSource["rows"]);
+        }
+        return new SQLResponse(/** @type {Partial<SQLResponse>} */($$parsedSource));
+    }
+}
+
 export class UserSettings {
     /**
      * Creates a new UserSettings instance.
@@ -346,3 +465,6 @@ export class UserSettings {
 // Private type creation functions
 const $$createType0 = Response.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $Create.Array($Create.Any);
+const $$createType3 = $Create.Map($Create.Any, $Create.Any);
+const $$createType4 = $Create.Array($$createType3);

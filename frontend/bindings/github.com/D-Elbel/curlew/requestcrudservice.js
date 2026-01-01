@@ -8,10 +8,6 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as json$0 from "../../../encoding/json/models.js";
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
 /**
@@ -53,40 +49,6 @@ export function DuplicateRequest(requestID) {
 }
 
 /**
- * @param {number} requestID
- * @param {string} method
- * @param {string} requestUrl
- * @param {string} headersIn
- * @param {string} body
- * @param {string} bodyType
- * @param {string} bodyFormat
- * @param {string} auth
- * @returns {$CancellablePromise<json$0.RawMessage>}
- */
-export function ExecuteRequest(requestID, method, requestUrl, headersIn, body, bodyType, bodyFormat, auth) {
-    return $Call.ByID(1005662952, requestID, method, requestUrl, headersIn, body, bodyType, bodyFormat, auth);
-}
-
-/**
- * @returns {$CancellablePromise<$models.Collection[]>}
- */
-export function GetAllCollections() {
-    return $Call.ByID(668722804).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType2($result);
-    }));
-}
-
-/**
- * TODO: lock down response object, replace "" with nulls etc
- * @returns {$CancellablePromise<$models.Request[]>}
- */
-export function GetAllRequestsList() {
-    return $Call.ByID(1997938213).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType3($result);
-    }));
-}
-
-/**
  * @param {number} id
  * @returns {$CancellablePromise<$models.Request>}
  */
@@ -102,7 +64,7 @@ export function GetRequest(id) {
  */
 export function GetResponseHistory(requestID) {
     return $Call.ByID(3419080141, requestID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
+        return $$createType3($result);
     }));
 }
 
@@ -111,6 +73,16 @@ export function GetResponseHistory(requestID) {
  */
 export function Init() {
     return $Call.ByID(293696986);
+}
+
+/**
+ * @param {$models.SQLRequest} req
+ * @returns {$CancellablePromise<$models.SQLResponse>}
+ */
+export function QuerySQL(req) {
+    return $Call.ByID(2383767720, req).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType4($result);
+    }));
 }
 
 /**
@@ -139,7 +111,7 @@ export function SaveRequest(collectionId, name, description, method, url, header
  */
 export function SearchRequests(searchTerm) {
     return $Call.ByID(2775248826, searchTerm).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType3($result);
+        return $$createType5($result);
     }));
 }
 
@@ -195,7 +167,7 @@ export function UpdateRequest(id, collectionId, name, description, method, reque
 // Private type creation functions
 const $$createType0 = $models.Collection.createFrom;
 const $$createType1 = $models.Request.createFrom;
-const $$createType2 = $Create.Array($$createType0);
-const $$createType3 = $Create.Array($$createType1);
-const $$createType4 = $models.Response.createFrom;
-const $$createType5 = $Create.Array($$createType4);
+const $$createType2 = $models.Response.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.SQLResponse.createFrom;
+const $$createType5 = $Create.Array($$createType1);

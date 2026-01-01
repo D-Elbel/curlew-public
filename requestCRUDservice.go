@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"time"
 
@@ -51,6 +49,29 @@ type Response struct {
 	RuntimeMS  int        `json:"runtimeMS"`
 	RequestID  int        `json:"requestID"`
 	CreatedAt  *time.Time `json:"createdAt,omitempty"`
+}
+
+type DBTarget string
+
+const (
+	DBMain         DBTarget = "main"
+	defaultMaxRows          = 200
+	maxAllowedRows          = 1000
+)
+
+type SQLRequest struct {
+	DB       DBTarget        `json:"db"`
+	SQL      string          `json:"sql"`
+	Params   []any           `json:"params"`
+	MaxRows  int             `json:"maxRows"`
+	ReadOnly bool            `json:"readOnly"`
+	Context  context.Context `json:"-"`
+}
+
+type SQLResponse struct {
+	Rows         []map[string]any `json:"rows,omitempty"`
+	RowsAffected int64            `json:"rowsAffected,omitempty"`
+	LastInsertID int64            `json:"lastInsertId,omitempty"`
 }
 
 func (s *RequestCRUDService) Init() {
@@ -260,6 +281,72 @@ func (s *RequestCRUDService) GetResponseHistory(requestID int) []Response {
 	return history
 }
 
+func (s *RequestCRUDService) QuerySQL(req SQLRequest) (SQLResponse, error) {
+	if s.db == nil {
+		return SQLResponse{}, fmt.Errorf("database not initialized")
+	}
+
+	normalized := normalizeSQLRequest(req)
+	if err := validateSQLRequest(normalized); err != nil {
+		return SQLResponse{}, err
+	}
+
+	db, err := s.dbHandle(normalized.DB)
+	if err != nil {
+		return SQLResponse{}, err
+	}
+
+	ctx := normalized.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	rows, err := db.QueryContext(ctx, normalized.SQL, normalized.Params...)
+	if err != nil {
+		return SQLResponse{}, err
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		return SQLResponse{}, err
+	}
+
+	var results []map[string]any
+	rowLimit := normalized.MaxRows
+	index := 0
+	for rows.Next() {
+		if index >= rowLimit {
+			break
+		}
+
+		rawValues := make([]any, len(columns))
+		dest := make([]any, len(columns))
+		for i := range rawValues {
+			dest[i] = &rawValues[i]
+		}
+
+		if err := rows.Scan(dest...); err != nil {
+			return SQLResponse{}, err
+		}
+
+		rowMap := make(map[string]any, len(columns))
+		for i, col := range columns {
+			rowMap[col] = normalizeSQLValue(rawValues[i])
+		}
+		results = append(results, rowMap)
+		index++
+	}
+
+	if err := rows.Err(); err != nil {
+		return SQLResponse{}, err
+	}
+
+	return SQLResponse{
+		Rows: results,
+	}, nil
+}
+
 func (s *RequestCRUDService) DeleteRequest(id int) error {
 	_, err := s.db.Exec("DELETE FROM requests WHERE id = ?", id)
 	if err != nil {
@@ -267,195 +354,6 @@ func (s *RequestCRUDService) DeleteRequest(id int) error {
 		return err
 	}
 	return nil
-}
-
-// TODO: lock down response object, replace "" with nulls etc
-func (s *RequestCRUDService) GetAllRequestsList() []Request {
-	s.normalizeRequestSortOrder()
-
-	var requests []Request
-	rows, err := s.db.Query("SELECT id, collection_id, name, description, method, url, sort_order FROM requests ORDER BY collection_id, COALESCE(sort_order, id)")
-
-	if err != nil {
-		fmt.Print("No requests found")
-		return []Request{}
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var (
-			requestID    int
-			collectionID sql.NullString
-			name         sql.NullString
-			description  sql.NullString
-			method       sql.NullString
-			url          sql.NullString
-			sortOrder    sql.NullInt64
-		)
-
-		err := rows.Scan(&requestID, &collectionID, &name, &description, &method, &url, &sortOrder)
-		if err != nil {
-			fmt.Println("Failed to scan request:", err)
-			continue
-		}
-		var r = Request{
-			ID:           requestID,
-			CollectionID: nullStringToPointer(collectionID),
-			Name:         nullStringToPointer(name),
-			Description:  nullStringToPointer(description),
-			Method:       nullStringToPointer(method),
-			URL:          nullStringToPointer(url),
-			SortOrder:    nullIntToPointer(sortOrder),
-		}
-		requests = append(requests, r)
-	}
-
-	return requests
-}
-
-func (s *RequestCRUDService) ExecuteRequest(requestID int, method string, requestUrl string, headersIn string, body string, bodyType string, bodyFormat string, auth string) (json.RawMessage, error) {
-	var bodyReader io.Reader
-
-	var headers []map[string]string
-	if err := json.Unmarshal([]byte(headersIn), &headers); err != nil {
-		var headerMap map[string]string
-		if err := json.Unmarshal([]byte(headersIn), &headerMap); err != nil {
-			headers = []map[string]string{}
-		} else {
-			headers = make([]map[string]string, 0, len(headerMap))
-			for k, v := range headerMap {
-				headers = append(headers, map[string]string{"key": k, "value": v})
-			}
-		}
-	}
-
-	switch bodyType {
-	case "none":
-		bodyReader = nil
-
-	case "raw":
-		bodyReader = bytes.NewBufferString(body)
-
-		contentType := "text/plain" // Default
-		switch bodyFormat {
-		case "JSON":
-			contentType = "application/json"
-		case "HTML":
-			contentType = "text/html"
-		case "XML":
-			contentType = "application/xml"
-		case "JavaScript":
-			contentType = "application/javascript"
-		}
-
-		foundContentType := false
-		for i, header := range headers {
-			if strings.ToLower(header["key"]) == "content-type" {
-				headers[i]["value"] = contentType
-				foundContentType = true
-				break
-			}
-		}
-		if !foundContentType {
-			headers = append(headers, map[string]string{"key": "Content-Type", "value": contentType})
-		}
-
-	case "graphql":
-		var graphqlData struct {
-			Query     string          `json:"query"`
-			Variables json.RawMessage `json:"variables"`
-		}
-		if err := json.Unmarshal([]byte(body), &graphqlData); err != nil {
-			return encodeError(fmt.Errorf("invalid GraphQL data format: %w", err)), err
-		}
-
-		graphqlBody, err := json.Marshal(graphqlData)
-		if err != nil {
-			return encodeError(fmt.Errorf("failed to encode GraphQL request: %w", err)), err
-		}
-
-		bodyReader = bytes.NewReader(graphqlBody)
-
-		foundContentType := false
-		for i, header := range headers {
-			if strings.ToLower(header["key"]) == "content-type" {
-				headers[i]["value"] = "application/json"
-				foundContentType = true
-				break
-			}
-		}
-		if !foundContentType {
-			headers = append(headers, map[string]string{"key": "Content-Type", "value": "application/json"})
-		}
-
-	default:
-		bodyReader = bytes.NewBufferString(body)
-	}
-
-	httpReq, err := http.NewRequest(method, requestUrl, bodyReader)
-	if err != nil {
-		return encodeError(err), err
-	}
-
-	//
-	for _, header := range headers {
-		if header["key"] != "" {
-			httpReq.Header.Set(header["key"], header["value"])
-		}
-	}
-
-	if auth != "" {
-		httpReq.Header.Set("Authorization", auth)
-	}
-
-	client := http.DefaultClient
-	startTime := time.Now()
-	resp, err := client.Do(httpReq)
-	endTime := time.Now()
-	requestTime := endTime.Sub(startTime).Milliseconds()
-
-	if err != nil {
-		return encodeError(err), err
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return encodeError(err), err
-	}
-
-	headersJSON, err := json.Marshal(resp.Header)
-	if err != nil {
-		return encodeError(err), err
-	}
-
-	var bodyJSON json.RawMessage
-	if json.Valid(bodyBytes) {
-		bodyJSON = json.RawMessage(bodyBytes)
-	} else {
-		str, _ := json.Marshal(string(bodyBytes))
-		bodyJSON = json.RawMessage(str)
-	}
-
-	createdAt := time.Now().UTC()
-
-	responseJSON, err := json.Marshal(map[string]interface{}{
-		"statusCode": resp.StatusCode,
-		"headers":    json.RawMessage(headersJSON),
-		"body":       bodyJSON,
-		"runtimeMS":  int(requestTime),
-		"createdAt":  createdAt,
-	})
-	if err != nil {
-		return encodeError(err), err
-	}
-
-	responseStorage := string(bodyBytes)
-	headersStorage := string(headersJSON)
-
-	s.logResponseHistory(requestID, resp.StatusCode, headersStorage, responseStorage, int(requestTime), &createdAt)
-
-	return responseJSON, nil
 }
 
 func encodeError(err error) json.RawMessage {
@@ -1040,35 +938,6 @@ func (s *RequestCRUDService) DeleteCollection(collectionId string) error {
 	return nil
 }
 
-func (s *RequestCRUDService) GetAllCollections() []Collection {
-	s.sanitizeCollectionParents()
-
-	var collections []Collection
-	rows, err := s.db.Query("SELECT id, name, parent_collection FROM collections")
-
-	if err != nil {
-		fmt.Println("Failed to get all collections", err)
-		return []Collection{}
-	}
-
-	for rows.Next() {
-		var c Collection
-		var parentId sql.NullString
-		err := rows.Scan(&c.ID, &c.Name, &parentId)
-		if err != nil {
-			fmt.Println("Failed to scan row to collection", err)
-			continue
-		}
-		if parentId.Valid && parentId.String == c.ID {
-			parentId.Valid = false
-		}
-		c.ParentCollectionId = nullStringToPointer(parentId)
-		collections = append(collections, c)
-	}
-
-	return collections
-}
-
 func (s *RequestCRUDService) sanitizeCollectionParents() {
 	if s.db == nil {
 		return
@@ -1178,6 +1047,80 @@ func (s *RequestCRUDService) createsCollectionCycle(collectionId string, newPare
 	return false, nil
 }
 
+func (s *RequestCRUDService) dbHandle(target DBTarget) (*sql.DB, error) {
+	switch target {
+	case "", DBMain:
+		return s.db, nil
+	default:
+		return nil, fmt.Errorf("unknown database target: %s", target)
+	}
+}
+
+func normalizeSQLRequest(req SQLRequest) SQLRequest {
+	if req.DB == "" {
+		req.DB = DBMain
+	}
+	if req.MaxRows <= 0 {
+		req.MaxRows = defaultMaxRows
+	}
+	if req.MaxRows > maxAllowedRows {
+		req.MaxRows = maxAllowedRows
+	}
+	// QuerySQL is read-only
+	req.ReadOnly = true
+	return req
+}
+
+func validateSQLRequest(req SQLRequest) error {
+	sqlText := strings.TrimSpace(req.SQL)
+	if sqlText == "" {
+		return fmt.Errorf("sql is required")
+	}
+	if !isSingleStatement(sqlText) {
+		return fmt.Errorf("only single statements are allowed")
+	}
+
+	if req.ReadOnly {
+		trimmed := strings.ToUpper(strings.TrimSpace(sqlText))
+		if !(strings.HasPrefix(trimmed, "SELECT") || strings.HasPrefix(trimmed, "WITH")) {
+			return fmt.Errorf("only SELECT statements are permitted for QuerySQL")
+		}
+	}
+
+	return nil
+}
+
+func isSingleStatement(sqlText string) bool {
+	trimmed := strings.TrimSpace(sqlText)
+	if trimmed == "" {
+		return false
+	}
+
+	semicolonCount := strings.Count(trimmed, ";")
+	if semicolonCount == 0 {
+		return true
+	}
+	return semicolonCount == 1 && strings.HasSuffix(trimmed, ";")
+}
+
+func normalizeSQLValue(val any) any {
+	switch v := val.(type) {
+	case nil:
+		return nil
+	case []byte:
+		return string(v)
+	case time.Time:
+		return v.UTC().Format(time.RFC3339Nano)
+	case *time.Time:
+		if v == nil {
+			return nil
+		}
+		return v.UTC().Format(time.RFC3339Nano)
+	default:
+		return v
+	}
+}
+
 func emptyStringToNullString(s string) sql.NullString {
 	if s == "" {
 		return sql.NullString{}
@@ -1213,4 +1156,3 @@ func nullIntToPointer(ni sql.NullInt64) *int {
 	}
 	return nil
 }
-

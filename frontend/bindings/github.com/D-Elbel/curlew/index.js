@@ -17,8 +17,11 @@ export {
 
 export {
     Collection,
+    DBTarget,
     Keybind,
     Request,
     Response,
+    SQLRequest,
+    SQLResponse,
     UserSettings
 } from "./models.js";
