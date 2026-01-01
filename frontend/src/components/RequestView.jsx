@@ -5,7 +5,6 @@ import { json } from "@codemirror/lang-json";
 import { html } from "@codemirror/lang-html";
 import { xml } from "@codemirror/lang-xml";
 import { javascript } from "@codemirror/lang-javascript";
-import { GetResponseHistory } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js";
 import { copilot } from "@uiw/codemirror-theme-copilot"
 import { Input } from "@/components/ui/input.js";
 import { EnvarSupportedInput } from "@/components/EnvarSupportedInput.jsx";
@@ -152,6 +151,8 @@ function RequestView({ request }) {
     const [apiKeyAddTo, setApiKeyAddTo] = useState("headers");
 
     const collections = useRequestStore((state) => state.collections);
+    const saveRequest = useRequestStore((state) => state.saveRequest);
+    const getResponseHistoryFromStore = useRequestStore((state) => state.getResponseHistory);
     const envs = useEnvarStore((state) => state.environmentVariables);
     const activeEnv = useEnvarStore((state) => state.activeEnvironment);
     const isInitialAutosave = useRef(true);
@@ -175,13 +176,12 @@ function RequestView({ request }) {
         }
 
         try {
-            const history = await GetResponseHistory(id);
-            console.log(history);
+            const history = await getResponseHistoryFromStore(id);
             setResponseHistory(Array.isArray(history) ? history : []);
         } catch (error) {
             console.error("Failed to load response history:", error);
         }
-    }, []);
+    }, [getResponseHistoryFromStore]);
 
     const fetchRequestById = useCallback(async (id) => {
         const requestResult = await queryDb({
@@ -524,8 +524,6 @@ function RequestView({ request }) {
             </CommandList>
         );
     };
-
-    const saveRequest = useRequestStore((state) => state.saveRequest);
 
     const buildBodyForPersist = () => {
         switch (bodyType) {

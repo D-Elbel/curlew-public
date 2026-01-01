@@ -21,6 +21,17 @@ export async function query({ sql, params = [], maxRows, db = DB_MAIN } = {}) {
     return normalizeResult(result);
 }
 
+export async function exec({ sql, params = [], db = DB_MAIN } = {}) {
+    const payload = {
+        db,
+        sql,
+        params,
+        readOnly: false,
+    };
+    const result = await Call.ByName("main.RequestCRUDService.ExecSQL", payload);
+    return normalizeExecResult(result);
+}
+
 function normalizeResult(result) {
     if (!result || typeof result !== "object") {
         return { rows: [] };
@@ -32,4 +43,13 @@ function normalizeResult(result) {
         return { rows: result.Rows };
     }
     return { rows: [] };
+}
+
+function normalizeExecResult(result) {
+    if (!result || typeof result !== "object") {
+        return { rowsAffected: 0, lastInsertId: 0 };
+    }
+    const rowsAffected = result.rowsAffected ?? result.RowsAffected ?? 0;
+    const lastInsertId = result.lastInsertId ?? result.LastInsertID ?? 0;
+    return { rowsAffected, lastInsertId };
 }

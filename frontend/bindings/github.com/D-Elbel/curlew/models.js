@@ -6,59 +6,6 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import * as time$0 from "../../../time/models.js";
-
-export class Collection {
-    /**
-     * Creates a new Collection instance.
-     * @param {Partial<Collection>} [$$source = {}] - The source object to create the Collection.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["description"] = "";
-        }
-        if (!("parentCollectionId" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["parentCollectionId"] = null;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Collection instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {Collection}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new Collection(/** @type {Partial<Collection>} */($$parsedSource));
-    }
-}
-
 /**
  * @readonly
  * @enum {string}
@@ -114,199 +61,6 @@ export class Keybind {
     }
 }
 
-export class Request {
-    /**
-     * Creates a new Request instance.
-     * @param {Partial<Request>} [$$source = {}] - The source object to create the Request.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["id"] = 0;
-        }
-        if (!("collectionId" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["collectionId"] = null;
-        }
-        if (!("collectionName" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["collectionName"] = null;
-        }
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["name"] = null;
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["description"] = null;
-        }
-        if (!("method" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["method"] = null;
-        }
-        if (!("url" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["url"] = null;
-        }
-        if (!("headers" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["headers"] = null;
-        }
-        if (!("body" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["body"] = null;
-        }
-        if (!("bodyType" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["bodyType"] = null;
-        }
-        if (!("bodyFormat" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["bodyFormat"] = null;
-        }
-        if (!("auth" in $$source)) {
-            /**
-             * @member
-             * @type {string | null}
-             */
-            this["auth"] = null;
-        }
-        if (!("sortOrder" in $$source)) {
-            /**
-             * @member
-             * @type {number | null}
-             */
-            this["sortOrder"] = null;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {Response | null | undefined}
-             */
-            this["response"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Request instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {Request}
-     */
-    static createFrom($$source = {}) {
-        const $$createField13_0 = $$createType1;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("response" in $$parsedSource) {
-            $$parsedSource["response"] = $$createField13_0($$parsedSource["response"]);
-        }
-        return new Request(/** @type {Partial<Request>} */($$parsedSource));
-    }
-}
-
-export class Response {
-    /**
-     * Creates a new Response instance.
-     * @param {Partial<Response>} [$$source = {}] - The source object to create the Response.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["id"] = 0;
-        }
-        if (!("statusCode" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["statusCode"] = 0;
-        }
-        if (!("headers" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["headers"] = "";
-        }
-        if (!("body" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["body"] = "";
-        }
-        if (!("runtimeMS" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["runtimeMS"] = 0;
-        }
-        if (!("requestID" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["requestID"] = 0;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {time$0.Time | null | undefined}
-             */
-            this["createdAt"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Response instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {Response}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new Response(/** @type {Partial<Response>} */($$parsedSource));
-    }
-}
-
 export class SQLRequest {
     /**
      * Creates a new SQLRequest instance.
@@ -358,7 +112,7 @@ export class SQLRequest {
      * @returns {SQLRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType2;
+        const $$createField2_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("params" in $$parsedSource) {
             $$parsedSource["params"] = $$createField2_0($$parsedSource["params"]);
@@ -404,7 +158,7 @@ export class SQLResponse {
      * @returns {SQLResponse}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType4;
+        const $$createField0_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rows" in $$parsedSource) {
             $$parsedSource["rows"] = $$createField0_0($$parsedSource["rows"]);
@@ -463,8 +217,6 @@ export class UserSettings {
 }
 
 // Private type creation functions
-const $$createType0 = Response.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = $Create.Map($Create.Any, $Create.Any);
-const $$createType4 = $Create.Array($$createType3);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = $Create.Map($Create.Any, $Create.Any);
+const $$createType2 = $Create.Array($$createType1);

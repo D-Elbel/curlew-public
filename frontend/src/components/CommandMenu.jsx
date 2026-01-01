@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import hotkeys from "hotkeys-js"
-import { SearchRequests } from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js"
+import { useRequestStore } from "@/stores/requestStore.js"
 import {
     Command,
     CommandDialog,
@@ -18,6 +18,7 @@ hotkeys.filter = () => true
 
 export default function CommandMenu({ onSelect }) {
     const { hotkeysMap } = useHotkeys()
+    const searchRequestsStore = useRequestStore((state) => state.searchRequests)
     const [open, setOpen] = useState(false)
     const [searchResults, setSearchResults] = useState([])
     const [searchActive, setSearchActive] = useState(false)
@@ -55,8 +56,7 @@ export default function CommandMenu({ onSelect }) {
                 return
             }
             try {
-                const results = await SearchRequests(term)
-                console.log(results)
+                const results = await searchRequestsStore(term)
                 if (isMounted.current) {
                     setSearchResults(results)
                     setSearchActive(true)

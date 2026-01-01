@@ -1,10 +1,4 @@
 import React, { useEffect, useState, useRef } from "react";
-import {
-    CreateCollection,
-    SetRequestCollection,
-    UpdateCollectionParent,
-    SetRequestSortOrder
-} from "../../bindings/github.com/D-Elbel/curlew/requestcrudservice.js";
 import { ImportPostmanCollection } from "../../bindings/github.com/D-Elbel/curlew/fileservice.js";
 import { Button } from "@/components/ui/button";
 import {
@@ -631,6 +625,10 @@ export default function RequestListSidebar({
     const deleteRequest = useRequestStore((state) => state.deleteRequest);
     const deleteCollection = useRequestStore((state) => state.deleteCollection);
     const duplicateRequest = useRequestStore((state) => state.duplicateRequest);
+    const createCollection = useRequestStore((state) => state.createCollection);
+    const updateCollectionParent = useRequestStore((state) => state.updateCollectionParent);
+    const setRequestCollection = useRequestStore((state) => state.setRequestCollection);
+    const reorderRequestInCollection = useRequestStore((state) => state.reorderRequestInCollection);
 
     const [isDialogOpen, setDialogOpen] = useState(false);
     const [isImportOpen, setImportOpen] = useState(false);
@@ -670,8 +668,7 @@ export default function RequestListSidebar({
             if (targetData?.type === "collection" && over.id !== currentCollectionId) {
                 const newColId = over.id === "__UNCATEGORIZED__" ? null : over.id;
                 try {
-                    await SetRequestCollection(requestId, newColId);
-                    await loadAll();
+                    await setRequestCollection(requestId, newColId);
                 } catch (error) {
                     console.error("Failed to move request to collection:", error);
                 }
@@ -682,8 +679,7 @@ export default function RequestListSidebar({
 
                 if (currentCollectionId === targetCollectionId) {
                     try {
-                        await SetRequestSortOrder(requestId, targetIndex);
-                        await loadAll();
+                        await reorderRequestInCollection(requestId, targetCollectionId, targetIndex);
                     } catch (error) {
                         console.error("Failed to reorder request:", error);
                     }
@@ -696,8 +692,7 @@ export default function RequestListSidebar({
                 return;
             }
             try {
-                await UpdateCollectionParent(collectionId, newParentId);
-                await loadAll();
+                await updateCollectionParent(collectionId, newParentId);
             } catch (error) {
                 console.error("Failed to move collection:", error);
             }
@@ -706,11 +701,10 @@ export default function RequestListSidebar({
 
     const handleCreateCollection = () => {
         if (!newCollectionName.trim()) return;
-        CreateCollection(newCollectionName.trim(), "", null)
+        createCollection(newCollectionName.trim(), "", null)
             .then(() => {
                 setNewCollectionName("");
                 setDialogOpen(false);
-                loadAll();
             })
             .catch(console.error);
     };

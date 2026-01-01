@@ -11,60 +11,12 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
- * @param {string} name
- * @param {string} description
- * @param {string | null} parentId
- * @returns {$CancellablePromise<$models.Collection>}
+ * @param {$models.SQLRequest} req
+ * @returns {$CancellablePromise<$models.SQLResponse>}
  */
-export function CreateCollection(name, description, parentId) {
-    return $Call.ByID(1554286192, name, description, parentId).then(/** @type {($result: any) => any} */(($result) => {
+export function ExecSQL(req) {
+    return $Call.ByID(840383547, req).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType0($result);
-    }));
-}
-
-/**
- * @param {string} collectionId
- * @returns {$CancellablePromise<void>}
- */
-export function DeleteCollection(collectionId) {
-    return $Call.ByID(3206062955, collectionId);
-}
-
-/**
- * @param {number} id
- * @returns {$CancellablePromise<void>}
- */
-export function DeleteRequest(id) {
-    return $Call.ByID(2773160300, id);
-}
-
-/**
- * @param {number} requestID
- * @returns {$CancellablePromise<$models.Request>}
- */
-export function DuplicateRequest(requestID) {
-    return $Call.ByID(456732318, requestID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
-    }));
-}
-
-/**
- * @param {number} id
- * @returns {$CancellablePromise<$models.Request>}
- */
-export function GetRequest(id) {
-    return $Call.ByID(1989088877, id).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
-    }));
-}
-
-/**
- * @param {number} requestID
- * @returns {$CancellablePromise<$models.Response[]>}
- */
-export function GetResponseHistory(requestID) {
-    return $Call.ByID(3419080141, requestID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType3($result);
     }));
 }
 
@@ -81,93 +33,9 @@ export function Init() {
  */
 export function QuerySQL(req) {
     return $Call.ByID(2383767720, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType4($result);
-    }));
-}
-
-/**
- * @param {string | null} collectionId
- * @param {string} name
- * @param {string} description
- * @param {string} method
- * @param {string} url
- * @param {string} headers
- * @param {string} body
- * @param {string} bodyType
- * @param {string} bodyFormat
- * @param {string} auth
- * @param {$models.Response | null} response
- * @returns {$CancellablePromise<$models.Request>}
- */
-export function SaveRequest(collectionId, name, description, method, url, headers, body, bodyType, bodyFormat, auth, response) {
-    return $Call.ByID(1341307122, collectionId, name, description, method, url, headers, body, bodyType, bodyFormat, auth, response).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
-    }));
-}
-
-/**
- * @param {string} searchTerm
- * @returns {$CancellablePromise<$models.Request[]>}
- */
-export function SearchRequests(searchTerm) {
-    return $Call.ByID(2775248826, searchTerm).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
-    }));
-}
-
-/**
- * @param {number} requestId
- * @param {string} collectionId
- * @returns {$CancellablePromise<void>}
- */
-export function SetRequestCollection(requestId, collectionId) {
-    return $Call.ByID(1870864429, requestId, collectionId);
-}
-
-/**
- * TODO: Implement this
- * @param {number} id
- * @param {number} sortOrder
- * @returns {$CancellablePromise<void>}
- */
-export function SetRequestSortOrder(id, sortOrder) {
-    return $Call.ByID(4050259431, id, sortOrder);
-}
-
-/**
- * @param {string} collectionId
- * @param {string | null} parentId
- * @returns {$CancellablePromise<void>}
- */
-export function UpdateCollectionParent(collectionId, parentId) {
-    return $Call.ByID(98912709, collectionId, parentId);
-}
-
-/**
- * @param {number} id
- * @param {string | null} collectionId
- * @param {string} name
- * @param {string} description
- * @param {string} method
- * @param {string} requestUrl
- * @param {string} headers
- * @param {string} body
- * @param {string} bodyType
- * @param {string} bodyFormat
- * @param {string} auth
- * @param {$models.Response | null} response
- * @returns {$CancellablePromise<$models.Request>}
- */
-export function UpdateRequest(id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response) {
-    return $Call.ByID(1380900686, id, collectionId, name, description, method, requestUrl, headers, body, bodyType, bodyFormat, auth, response).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
+        return $$createType0($result);
     }));
 }
 
 // Private type creation functions
-const $$createType0 = $models.Collection.createFrom;
-const $$createType1 = $models.Request.createFrom;
-const $$createType2 = $models.Response.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = $models.SQLResponse.createFrom;
-const $$createType5 = $Create.Array($$createType1);
+const $$createType0 = $models.SQLResponse.createFrom;

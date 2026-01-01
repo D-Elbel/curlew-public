@@ -13,9 +13,20 @@ const safeString = (value) => {
     if (value === null || value === undefined) return '';
     if(Array.isArray(value) && value.length){
         //TODO: Clearer parsing out of types
-        String(value[0])
+        return String(value[0])
     }
     return String(value);
+};
+
+const normalizeContentType = (ct) => {
+    if (typeof ct === "string") return ct.toLowerCase();
+    if (Array.isArray(ct)) {
+        return ct
+            .filter(Boolean)
+            .map((v) => String(v).toLowerCase())
+            .join(",");
+    }
+    return "";
 };
 
 
@@ -82,7 +93,7 @@ export const formatContent = (content, contentType) => {
     if (!content) return "";
 
     console.log(contentType)
-    const type = contentType[0]?.toLowerCase() || '';
+    const type = normalizeContentType(contentType);
 
     if (type?.includes('json') || type?.includes('application/json')) {
         try {
@@ -118,7 +129,7 @@ export const getLanguageExtension = (contentType, content) => {
 
     if (!contentType && !content) return [];
 
-    const type = contentType?.toLowerCase || '';
+    const type = normalizeContentType(contentType);
 
     if (type?.includes('json') || type?.includes('application/json')) {
         return [json()];
