@@ -161,3 +161,21 @@ export const collectionQueries = {
         WHERE id = ?;
     `,
 };
+
+export const keybindQueries = {
+    getAll: `
+        SELECT
+            command AS command,
+            bind AS bind,
+            pretty_name AS prettyName
+        FROM hotkey_binds
+        ORDER BY command;
+    `,
+    upsert: `
+        INSERT INTO hotkey_binds (command, bind, pretty_name)
+        VALUES (?, ?, ?)
+        ON CONFLICT(command) DO UPDATE SET
+            bind = excluded.bind,
+            pretty_name = excluded.pretty_name;
+    `,
+};

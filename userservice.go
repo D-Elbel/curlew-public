@@ -8,8 +8,9 @@ import (
 )
 
 type UserService struct {
-	db  *sql.DB
-	app *application.App
+	db        *sql.DB
+	app       *application.App
+	sqlRunner *SQLRunner
 }
 
 type Keybind struct {
@@ -18,36 +19,22 @@ type Keybind struct {
 	PrettyName *string `json:"prettyName"`
 }
 
-type DbKeybind struct {
-	command     sql.NullString
-	bind        sql.NullString
-	pretty_name sql.NullString
-}
-
 func (s *UserService) FetchUserKeybinds() json.RawMessage {
-	var keybinds []Keybind
-	rows, err := s.db.Query("SELECT * FROM hotkey_binds")
+	result, err := s.ensureSQLRunner().QuerySQL(SQLRequest{
+		SQL: `SELECT command, bind, pretty_name AS prettyName FROM hotkey_binds`,
+	})
 	if err != nil {
 		fmt.Println("Error fetching keybinds", err)
 		return nil
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var dbK DbKeybind
-		err := rows.Scan(&dbK.command, &dbK.bind, &dbK.pretty_name)
-		if err != nil {
-			fmt.Println("Error scanning rows", err)
-			continue
-		}
-
-		keybind := Keybind{
-			Command:    nullStringToPointer(dbK.command),
-			Bind:       nullStringToPointer(dbK.bind),
-			PrettyName: nullStringToPointer(dbK.pretty_name),
-		}
-
-		keybinds = append(keybinds, keybind)
+	keybinds := make([]Keybind, 0, len(result.Rows))
+	for _, row := range result.Rows {
+		keybinds = append(keybinds, Keybind{
+			Command:    stringPtrFromAny(row["command"]),
+			Bind:       stringPtrFromAny(row["bind"]),
+			PrettyName: stringPtrFromAny(row["prettyName"]),
+		})
 	}
 
 	jsonBytes, err := json.MarshalIndent(keybinds, "", "")
@@ -105,4 +92,85 @@ func (s *UserService) UpdateUserKeybinds(keybinds []Keybind) error {
 	}
 
 	return nil
+}
+
+func (s *UserService) ensureSQLRunner() *SQLRunner {
+	if s.sqlRunner == nil {
+		s.sqlRunner = NewSQLRunner(s.db)
+	}
+	return s.sqlRunner
+}
+
+func stringPtrFromAny(value any) *string {
+	if value == nil {
+		return nil
+	}
+	if str, ok := value.(string); ok {
+		return &str
+	}
+	str := fmt.Sprint(value)
+	return &str
+}
+
+func (s *UserService) ensureHotkeySchema() {
+	if s.db == nil {
+		return
+	}
+
+	hasPretty := false
+	rows, err := s.db.Query(`PRAGMA table_info(hotkey_binds)`)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var (
+				cid       int
+				name      string
+				ctype     string
+				notnull   int
+				dfltValue sql.NullString
+				pk        int
+			)
+			if err := rows.Scan(&cid, &name, &ctype, &notnull, &dfltValue, &pk); err != nil {
+				continue
+			}
+			if name == "pretty_name" {
+				hasPretty = true
+				break
+			}
+		}
+	}
+
+	if !hasPretty {
+		if _, err := s.db.Exec(`ALTER TABLE hotkey_binds ADD COLUMN pretty_name TEXT`); err != nil {
+			fmt.Println("Failed to add pretty_name to hotkey_binds:", err)
+		}
+	}
+
+	defaults := []struct {
+		command    string
+		bind       string
+		prettyName string
+	}{
+		{"OPEN_SEARCH_COMMAND", "ctrl+k", "Open Search"},
+		{"OPEN_TAB_MENU", "ctrl+tab", "Open Tab Menu"},
+		{"NEW_ENV", "ctrl+n+e", "New Environment"},
+		{"NEW_REQUEST", "ctrl+n+r", "New Request"},
+		{"OPEN_ENV", "ctrl+e", "Open Environment"},
+		{"OPEN_SIDEBAR", "ctrl+b", "Toggle Sidebar"},
+		{"HANDLE_ENTITY_SAVE", "ctrl+s", "Save Entity"},
+		{"SEND_REQUEST", "ctrl+enter", "Send Request"},
+	}
+
+	for _, d := range defaults {
+		if _, err := s.db.Exec(
+			`INSERT INTO hotkey_binds (command, bind, pretty_name)
+             VALUES (?, ?, ?)
+             ON CONFLICT(command) DO NOTHING`,
+			d.command,
+			d.bind,
+			d.prettyName,
+		); err != nil {
+			fmt.Println("Failed to seed hotkey bind", d.command, err)
+		}
+	}
 }

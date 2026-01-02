@@ -14,11 +14,16 @@ export async function executeHttpRequest({
 
     const prepared = prepareBody(bodyType, body, bodyFormat, headerMap);
     const start = now();
-    const response = await fetch(url, {
-        method,
-        headers: prepared.headers,
-        body: prepared.body,
-    });
+    let response;
+    try {
+        response = await fetch(url, {
+            method,
+            headers: prepared.headers,
+            body: prepared.body,
+        });
+    } catch (error) {
+        throw enrichFetchError(error, url);
+    }
     const runtimeMS = Math.round(now() - start);
 
     const responseHeaders = collectHeaders(response.headers);
@@ -37,6 +42,35 @@ export async function executeHttpRequest({
         runtimeMS,
         createdAt: new Date().toISOString(),
     };
+}
+
+function enrichFetchError(error, requestUrl) {
+    const message = error?.message || error?.toString?.() || "Request failed.";
+    if (isLikelyCorsError(error, requestUrl)) {
+        return new Error(
+            `${message} This is often caused by CORS restrictions on the target host.`,
+        );
+    }
+    return new Error(message);
+}
+
+function isLikelyCorsError(error, requestUrl) {
+    if (!error) return false;
+    const name = typeof error.name === "string" ? error.name : "";
+    const message = typeof error.message === "string" ? error.message : "";
+    const corsHint = /failed to fetch|networkerror/i;
+    if (!corsHint.test(message) && name !== "TypeError") {
+        return false;
+    }
+    if (typeof window === "undefined") {
+        return false;
+    }
+    try {
+        const targetOrigin = new URL(requestUrl, window.location.href).origin;
+        return targetOrigin !== window.location.origin;
+    } catch {
+        return false;
+    }
 }
 
 function parseHeaders(headersInput) {

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react'
 import hotkeys from 'hotkeys-js'
-import { FetchUserKeybinds } from '../../bindings/github.com/D-Elbel/curlew/userservice.js'
+import { fetchUserKeybinds } from '@/services/keybinds.js'
 
 const HotkeysContext = createContext(null)
 
@@ -11,7 +11,8 @@ const defaultHotkeysMap = {
     NEW_REQUEST:          'ctrl+n+r',
     OPEN_ENV:             'ctrl+e',
     OPEN_SIDEBAR:         'ctrl+b',
-    HANDLE_ENTITY_SAVE:   'ctrl+s'
+    HANDLE_ENTITY_SAVE:   'ctrl+s',
+    SEND_REQUEST:         'ctrl+enter',
 }
 
 export const HotkeysProvider = ({ children }) => {
@@ -21,7 +22,7 @@ export const HotkeysProvider = ({ children }) => {
     // Function to load keybinds from DB
     const loadKeybinds = async () => {
         try {
-            const dbHotkeys = await FetchUserKeybinds()
+            const dbHotkeys = await fetchUserKeybinds()
             if (Array.isArray(dbHotkeys) && dbHotkeys.length) {
                 setHotkeysMap(prev => {
                     const merged = { ...prev }

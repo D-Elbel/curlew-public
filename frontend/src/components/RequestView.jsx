@@ -23,13 +23,15 @@ import { useHotkeys } from "@/services/HotkeysContext.jsx";
 import { executeHttpRequest } from "@/services/requestExecutor.js";
 import hotkeys from "hotkeys-js";
 import { CommandDialog, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
-import { FolderClosed } from "lucide-react";
+import { AlertTriangle, FolderClosed } from "lucide-react";
 import { formatCode, formatContent, getLanguageExtension } from '../utils/codeProcessing.js'
 import { buildCollectionTree } from "../utils/collections.js"
 
 import { useEnvarStore } from "@/stores/envarStore";
 import { query as queryDb } from "@/services/database.js";
 import { requestQueries } from "@/services/queries.js";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const applyEnvVars = (text, envs, activeEnv) => {
     if (!text || typeof text !== 'string') {
@@ -158,6 +160,7 @@ function RequestView({ request }) {
     const isInitialAutosave = useRef(true);
     const saveTimeout = useRef(null);
     const isSyncingFromSave = useRef(false);
+    const executeRef = useRef(null);
     const resolvedRequestId = typeof fullRequest?.id === "number"
         ? fullRequest.id
         : typeof request?.id === "number"
@@ -168,6 +171,8 @@ function RequestView({ request }) {
         latestResponse && typeof latestResponse.body === "string"
             ? (new Blob([latestResponse.body]).size / 1024).toFixed(2)
             : null;
+    const sendShortcut = hotkeysMap.SEND_REQUEST || "ctrl+enter";
+    const sendKeyParts = sendShortcut.split("+").map((p) => p.trim()).filter(Boolean);
 
     const loadResponseHistory = useCallback(async (id) => {
         if (!id) {
@@ -249,6 +254,7 @@ function RequestView({ request }) {
             try {
                 const fetched = await fetchRequestById(request.id);
                 if (fetched) {
+                    setResponseTab("body");
                     setFullRequest(fetched);
                 } else {
                     setErrorMessage("Failed to fetch request details.");
@@ -269,7 +275,7 @@ function RequestView({ request }) {
     }, [resolvedRequestId, loadResponseHistory]);
 
     useEffect(() => {
-        if (!responseData && responseHistory.length > 0) {
+        if (!isLoading && !responseData && responseHistory.length > 0) {
             setResponseTab((prev) => (prev === "history" ? prev : "history"));
             return;
         }
@@ -277,7 +283,7 @@ function RequestView({ request }) {
         if (responseHistory.length === 0 && responseData) {
             setResponseTab((prev) => (prev === "history" ? "body" : prev));
         }
-    }, [responseData, responseHistory.length]);
+    }, [responseData, responseHistory.length, isLoading]);
 
     useEffect(() => {
         const syncFullRequest = async () => {
@@ -748,6 +754,7 @@ function RequestView({ request }) {
 
     const handleExecute = async () => {
         setIsLoading(true);
+        setResponseTab("body");
         setErrorMessage("");
         setResponseData(null);
 
@@ -842,12 +849,30 @@ function RequestView({ request }) {
             }
         } catch (error) {
             console.error("Error executing request:", error);
-            setErrorMessage(error.toString());
-            setResponseData({ error: error.toString() });
+            const message =
+                error?.message || error?.toString?.() || "Request failed.";
+            setErrorMessage(message);
+            setResponseData({ error: message });
         } finally {
             setIsLoading(false);
         }
     };
+
+    useEffect(() => {
+        executeRef.current = handleExecute;
+    }, [handleExecute]);
+
+    useEffect(() => {
+        const combo = hotkeysMap.SEND_REQUEST || "ctrl+enter";
+        const handler = (e) => {
+            e.preventDefault();
+            if (executeRef.current) {
+                executeRef.current();
+            }
+        };
+        hotkeys(combo, handler);
+        return () => hotkeys.unbind(combo, handler);
+    }, [hotkeysMap.SEND_REQUEST]);
 
     const handleResponse = async (result) => {
         const enrichedResult = {
@@ -1213,8 +1238,14 @@ function RequestView({ request }) {
     return (
         <div className="request-view flex flex-col max-h-[90vh] overflow-hidden p-2 w-full">
             {errorMessage && (
-                <div className="p-2 mb-4">
-                    {errorMessage}
+                <div className="mb-4 flex items-start gap-2 rounded border border-red-500/60 bg-red-500/10 px-3 py-2 text-xs text-red-100">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 text-red-400" />
+                    <div className="space-y-1">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-red-300">
+                            Error
+                        </div>
+                        <div>{errorMessage}</div>
+                    </div>
                 </div>
             )}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -1302,7 +1333,21 @@ function RequestView({ request }) {
                     onClick={handleExecute}
                     disabled={isLoading}
                 >
-                    {isLoading ? "Sending..." : "Send"}
+                    <div className="flex flex-col items-center text-xs">
+                        <span className="text-sm">
+                            {isLoading ? "Sending..." : "Send"}
+                        </span>
+                        <KbdGroup>
+                            {sendKeyParts.map((key, idx) => (
+                                <React.Fragment key={`${key}-${idx}`}>
+                                    <Kbd>{key.toUpperCase()}</Kbd>
+                                    {idx < sendKeyParts.length - 1 && (
+                                        <span className="px-1">+</span>
+                                    )}
+                                </React.Fragment>
+                            ))}
+                        </KbdGroup>
+                    </div>
                 </button>
             </div>
             <div className="flex-none mb-4 border-b">
@@ -1430,33 +1475,27 @@ function RequestView({ request }) {
             {activeTab === "body" && (
                 <div className="flex-none p-3">
                     <h3 className="font-semibold mb-2">Body</h3>
-                    <div className="flex flex-wrap gap-4 mb-4">
+                    <RadioGroup
+                        value={bodyType}
+                        onValueChange={setBodyType}
+                        className="flex flex-wrap gap-4 mb-4"
+                    >
                         {[
                             { label: "None", value: "none" },
                             { label: "Raw", value: "raw" },
                             { label: "GraphQL", value: "graphql" },
                             { label: "Form-Data", value: "formdata" },
-                            {
-                                label: "x-www-form-urlencoded",
-                                value: "urlencoded",
-                            },
+                            { label: "x-www-form-urlencoded", value: "urlencoded" },
                             { label: "Binary", value: "binary" },
                         ].map((option) => (
-                            <label
-                                key={option.value}
-                                className="flex items-center space-x-1"
-                            >
-                                <input
-                                    type="radio"
-                                    value={option.value}
-                                    checked={bodyType === option.value}
-                                    onChange={() => setBodyType(option.value)}
-                                    className=""
-                                />
-                                <span>{option.label}</span>
-                            </label>
+                            <div key={option.value} className="flex items-center space-x-2">
+                                <RadioGroupItem value={option.value} id={`body-${option.value}`} />
+                                <label htmlFor={`body-${option.value}`} className="cursor-pointer">
+                                    {option.label}
+                                </label>
+                            </div>
                         ))}
-                    </div>
+                    </RadioGroup>
 
                     {bodyType === "raw" && (
                         <div>
@@ -1650,21 +1689,15 @@ function RequestView({ request }) {
                                         >
                                             <strong>Status:</strong> {latestResponse.statusCode}
                                         </span>
-                                        <span>
-                                            <strong>Time:</strong> {latestResponse.runtimeMS}
-                                            ms
-                                        </span>
                                         {latestResponseSizeKb && (
                                             <span>
                                                 <strong>Size:</strong> {latestResponseSizeKb} KB
                                             </span>
                                         )}
-                                        {latestResponse.createdAt && (
-                                            <span>
-                                                <strong>Received:</strong>{" "}
-                                                {new Date(latestResponse.createdAt).toLocaleString()}
-                                            </span>
-                                        )}
+                                        <span>
+                                            <strong>Time:</strong> {latestResponse.runtimeMS}
+                                            ms
+                                        </span>
                                     </>
                                 ) : (
                                     <span>No responses yet</span>

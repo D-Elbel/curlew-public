@@ -11,13 +11,21 @@ import {
     SelectItem,
 } from "@/components/ui/select";
 import { SaveUserSettings } from "../../bindings/github.com/D-Elbel/curlew/appstateservice.js";
-import {
-    FetchUserKeybinds,
-    UpdateUserKeybinds,
-} from "../../bindings/github.com/D-Elbel/curlew/userservice.js";
+import { fetchUserKeybinds, updateUserKeybinds } from "@/services/keybinds.js";
 import { useHotkeys } from "@/services/HotkeysContext.jsx";
 import { useEnvarStore } from "@/stores/envarStore";
 import { useUserSettings } from "@/services/UserSettingsContext.jsx";
+
+const defaultKeybinds = [
+    { command: "OPEN_SEARCH_COMMAND", prettyName: "Open Search", defaultBind: "ctrl+k" },
+    { command: "OPEN_TAB_MENU", prettyName: "Open Tab Menu", defaultBind: "ctrl+tab" },
+    { command: "NEW_ENV", prettyName: "New Environment", defaultBind: "ctrl+n+e" },
+    { command: "NEW_REQUEST", prettyName: "New Request", defaultBind: "ctrl+n+r" },
+    { command: "OPEN_ENV", prettyName: "Open Environment", defaultBind: "ctrl+e" },
+    { command: "OPEN_SIDEBAR", prettyName: "Toggle Sidebar", defaultBind: "ctrl+b" },
+    { command: "HANDLE_ENTITY_SAVE", prettyName: "Save Entity", defaultBind: "ctrl+s" },
+    { command: "SEND_REQUEST", prettyName: "Send Request", defaultBind: "ctrl+enter" },
+];
 
 const mapSettingsToFormState = (raw) => {
     const fallback = {
@@ -72,8 +80,23 @@ export default function SettingsModal({ open, onOpenChange }) {
                 console.error("Failed to refresh user settings", err);
             }
             try {
-                const loadedKeybinds = await FetchUserKeybinds();
-                setKeybinds(loadedKeybinds);
+                const loadedKeybinds = await fetchUserKeybinds();
+                const mergedKeybinds = defaultKeybinds.map((def) => {
+                    const found = Array.isArray(loadedKeybinds)
+                        ? loadedKeybinds.find((k) => k.command === def.command)
+                        : null;
+                    return {
+                        command: def.command,
+                        prettyName: found?.prettyName || def.prettyName,
+                        bind: found?.bind || def.defaultBind,
+                    };
+                });
+                const extras = Array.isArray(loadedKeybinds)
+                    ? loadedKeybinds.filter(
+                        (k) => !defaultKeybinds.some((d) => d.command === k.command),
+                    )
+                    : [];
+                setKeybinds([...mergedKeybinds, ...extras]);
             } catch (err) {
                 console.error("Failed to load keybinds", err);
             }
@@ -114,7 +137,7 @@ export default function SettingsModal({ open, onOpenChange }) {
                 ...settings,
                 responseHistoryTTL: ttlNumber,
             });
-            await UpdateUserKeybinds(keybinds);
+            await updateUserKeybinds(keybinds);
             reloadHotkeys();
             const latest = await refreshSettings();
             setSettings(mapSettingsToFormState(latest));

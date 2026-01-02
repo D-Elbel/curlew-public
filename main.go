@@ -6,12 +6,13 @@ import (
 	"embed"
 	_ "embed"
 	"fmt"
-	"github.com/wailsapp/wails/v3/pkg/application"
-	"github.com/wailsapp/wails/v3/pkg/events"
 	"log"
-	_ "modernc.org/sqlite"
 	"os"
 	"time"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
+	_ "modernc.org/sqlite"
 )
 
 //go:embed all:frontend/dist
@@ -37,9 +38,10 @@ func main() {
 		}
 	}
 
-	crudService := &RequestCRUDService{db: db}
+	sqlRunner := NewSQLRunner(db)
+	crudService := &RequestCRUDService{db: db, sqlRunner: sqlRunner}
 	envarService := &EnvarService{}
-	userService := &UserService{db: db}
+	userService := &UserService{db: db, sqlRunner: sqlRunner}
 	fileService := &FileService{db: db}
 	appStateService := NewAppStateService(db)
 
@@ -80,6 +82,9 @@ func main() {
 			InvisibleTitleBarHeight: 50,
 			Backdrop:                application.MacBackdropTranslucent,
 			TitleBar:                application.MacTitleBarHiddenInset,
+		},
+		Windows: application.WindowsWindow{
+			AdditionalLaunchArgs: []string{"--disable-web-security"},
 		},
 		BackgroundColour: application.NewRGB(27, 38, 54),
 		URL:              "/",
@@ -140,4 +145,3 @@ func executeSQLFromFile(db *sql.DB, filePath string) error {
 	_, err = db.Exec(string(content))
 	return err
 }
-

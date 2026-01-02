@@ -1,42 +1,17 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type RequestCRUDService struct {
-	db  *sql.DB
-	app *application.App
-}
-
-type Request struct {
-	ID             int       `json:"id"`
-	CollectionID   *string   `json:"collectionId"`
-	CollectionName *string   `json:"collectionName"`
-	Name           *string   `json:"name"`
-	Description    *string   `json:"description"`
-	Method         *string   `json:"method"`
-	URL            *string   `json:"url"`
-	Headers        *string   `json:"headers"`
-	Body           *string   `json:"body"`
-	BodyType       *string   `json:"bodyType"`
-	BodyFormat     *string   `json:"bodyFormat"`
-	Auth           *string   `json:"auth"`
-	SortOrder      *int      `json:"sortOrder"`
-	Response       *Response `json:"response,omitempty"`
-}
-
-type Collection struct {
-	ID                 string  `json:"id"`
-	Name               string  `json:"name"`
-	Description        string  `json:"description"`
-	ParentCollectionId *string `json:"parentCollectionId"`
+	db        *sql.DB
+	app       *application.App
+	sqlRunner *SQLRunner
 }
 
 type Response struct {
@@ -47,29 +22,6 @@ type Response struct {
 	RuntimeMS  int        `json:"runtimeMS"`
 	RequestID  int        `json:"requestID"`
 	CreatedAt  *time.Time `json:"createdAt,omitempty"`
-}
-
-type DBTarget string
-
-const (
-	DBMain         DBTarget = "main"
-	defaultMaxRows          = 200
-	maxAllowedRows          = 1000
-)
-
-type SQLRequest struct {
-	DB       DBTarget        `json:"db"`
-	SQL      string          `json:"sql"`
-	Params   []any           `json:"params"`
-	MaxRows  int             `json:"maxRows"`
-	ReadOnly bool            `json:"readOnly"`
-	Context  context.Context `json:"-"`
-}
-
-type SQLResponse struct {
-	Rows         []map[string]any `json:"rows,omitempty"`
-	RowsAffected int64            `json:"rowsAffected,omitempty"`
-	LastInsertID int64            `json:"lastInsertId,omitempty"`
 }
 
 func (s *RequestCRUDService) Init() {
@@ -186,195 +138,18 @@ func (s *RequestCRUDService) logResponseHistory(requestID int, statusCode int, h
 }
 
 func (s *RequestCRUDService) QuerySQL(req SQLRequest) (SQLResponse, error) {
-	if s.db == nil {
-		return SQLResponse{}, fmt.Errorf("database not initialized")
-	}
-
-	normalized := normalizeSQLRequest(req)
-	if err := validateSQLRequest(normalized); err != nil {
-		return SQLResponse{}, err
-	}
-
-	db, err := s.dbHandle(normalized.DB)
-	if err != nil {
-		return SQLResponse{}, err
-	}
-
-	ctx := normalized.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	rows, err := db.QueryContext(ctx, normalized.SQL, normalized.Params...)
-	if err != nil {
-		return SQLResponse{}, err
-	}
-	defer rows.Close()
-
-	columns, err := rows.Columns()
-	if err != nil {
-		return SQLResponse{}, err
-	}
-
-	var results []map[string]any
-	rowLimit := normalized.MaxRows
-	index := 0
-	for rows.Next() {
-		if index >= rowLimit {
-			break
-		}
-
-		rawValues := make([]any, len(columns))
-		dest := make([]any, len(columns))
-		for i := range rawValues {
-			dest[i] = &rawValues[i]
-		}
-
-		if err := rows.Scan(dest...); err != nil {
-			return SQLResponse{}, err
-		}
-
-		rowMap := make(map[string]any, len(columns))
-		for i, col := range columns {
-			rowMap[col] = normalizeSQLValue(rawValues[i])
-		}
-		results = append(results, rowMap)
-		index++
-	}
-
-	if err := rows.Err(); err != nil {
-		return SQLResponse{}, err
-	}
-
-	return SQLResponse{
-		Rows: results,
-	}, nil
+	return s.ensureSQLRunner().QuerySQL(req)
 }
 
 func (s *RequestCRUDService) ExecSQL(req SQLRequest) (SQLResponse, error) {
-	if s.db == nil {
-		return SQLResponse{}, fmt.Errorf("database not initialized")
-	}
-
-	normalized := normalizeSQLRequest(req)
-	normalized.ReadOnly = false
-
-	if err := validateExecRequest(normalized); err != nil {
-		return SQLResponse{}, err
-	}
-
-	db, err := s.dbHandle(normalized.DB)
-	if err != nil {
-		return SQLResponse{}, err
-	}
-
-	ctx := normalized.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	result, err := db.ExecContext(ctx, normalized.SQL, normalized.Params...)
-	if err != nil {
-		return SQLResponse{}, err
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	lastInsertID, _ := result.LastInsertId()
-
-	return SQLResponse{
-		RowsAffected: rowsAffected,
-		LastInsertID: lastInsertID,
-	}, nil
+	return s.ensureSQLRunner().ExecSQL(req)
 }
 
-func (s *RequestCRUDService) dbHandle(target DBTarget) (*sql.DB, error) {
-	switch target {
-	case "", DBMain:
-		return s.db, nil
-	default:
-		return nil, fmt.Errorf("unknown database target: %s", target)
+func (s *RequestCRUDService) ensureSQLRunner() *SQLRunner {
+	if s.sqlRunner == nil {
+		s.sqlRunner = NewSQLRunner(s.db)
 	}
-}
-
-func normalizeSQLRequest(req SQLRequest) SQLRequest {
-	if req.DB == "" {
-		req.DB = DBMain
-	}
-	if req.MaxRows <= 0 {
-		req.MaxRows = defaultMaxRows
-	}
-	if req.MaxRows > maxAllowedRows {
-		req.MaxRows = maxAllowedRows
-	}
-	// QuerySQL is read-only
-	req.ReadOnly = true
-	return req
-}
-
-func validateSQLRequest(req SQLRequest) error {
-	sqlText := strings.TrimSpace(req.SQL)
-	if sqlText == "" {
-		return fmt.Errorf("sql is required")
-	}
-	if !isSingleStatement(sqlText) {
-		return fmt.Errorf("only single statements are allowed")
-	}
-
-	if req.ReadOnly {
-		trimmed := strings.ToUpper(strings.TrimSpace(sqlText))
-		if !(strings.HasPrefix(trimmed, "SELECT") || strings.HasPrefix(trimmed, "WITH")) {
-			return fmt.Errorf("only SELECT statements are permitted for QuerySQL")
-		}
-	}
-
-	return nil
-}
-
-func validateExecRequest(req SQLRequest) error {
-	sqlText := strings.TrimSpace(req.SQL)
-	if sqlText == "" {
-		return fmt.Errorf("sql is required")
-	}
-	if !isSingleStatement(sqlText) {
-		return fmt.Errorf("only single statements are allowed")
-	}
-
-	trimmed := strings.ToUpper(strings.TrimSpace(sqlText))
-	if strings.HasPrefix(trimmed, "SELECT") || strings.HasPrefix(trimmed, "WITH") {
-		return fmt.Errorf("ExecSQL only supports write statements")
-	}
-	return nil
-}
-
-func isSingleStatement(sqlText string) bool {
-	trimmed := strings.TrimSpace(sqlText)
-	if trimmed == "" {
-		return false
-	}
-
-	semicolonCount := strings.Count(trimmed, ";")
-	if semicolonCount == 0 {
-		return true
-	}
-	return semicolonCount == 1 && strings.HasSuffix(trimmed, ";")
-}
-
-func normalizeSQLValue(val any) any {
-	switch v := val.(type) {
-	case nil:
-		return nil
-	case []byte:
-		return string(v)
-	case time.Time:
-		return v.UTC().Format(time.RFC3339Nano)
-	case *time.Time:
-		if v == nil {
-			return nil
-		}
-		return v.UTC().Format(time.RFC3339Nano)
-	default:
-		return v
-	}
+	return s.sqlRunner
 }
 
 func nullStringToPointer(ns sql.NullString) *string {

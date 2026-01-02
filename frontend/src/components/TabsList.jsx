@@ -8,7 +8,8 @@ import {
 } from "@/components/ui/select";
 import { useEnvarStore } from "@/stores/envarStore";
 import { Button } from "@/components/ui/button";
-import { FileText, Plus, Code } from "lucide-react";
+import { methodColourMap } from "@/utils/constants.js";
+import { FileText, Plus } from "lucide-react";
 
 function TabsList({ tabs, activeTabIds, onTabSelect, onCloseTab, onNewTab, onNewEnv, onOpenEnv }) {
     const envs = useEnvarStore((state) => state.environmentVariables);
@@ -22,9 +23,9 @@ function TabsList({ tabs, activeTabIds, onTabSelect, onCloseTab, onNewTab, onNew
     const getTabIcon = (tab) => {
         if (tab.type === 'env') {
             return <FileText className="h-4 w-4 mr-1" />;
-        } else {
-            return <Code className="h-4 w-4 mr-1" />;
         }
+
+        return null;
     };
 
     const getTabLabel = (tab) => {
@@ -41,22 +42,29 @@ function TabsList({ tabs, activeTabIds, onTabSelect, onCloseTab, onNewTab, onNew
                 <div className="flex items-center flex-nowrap border-b">
                     {tabs.map((tab) => {
                         const isActive = activeTabIds.includes(tab.id);
+                        const methodKey = tab.method?.toUpperCase?.() ?? tab.method;
+                        const methodClass = methodColourMap.get(methodKey) || "text-white";
+                        const methodBorderClass =
+                            tab.type === 'env'
+                                ? "border-l-2 border-transparent"
+                                : `border-l-2 border-current ${methodClass}`;
+                        const tabTextClass = tab.type === 'env' ? "" : "text-white";
                         return (
                             <div
                                 key={tab.id}
-                                className={`tab flex select-none justify-between items-center px-2 cursor-pointer border-r ${
+                                className={`tab flex select-none justify-between items-center pr-2 cursor-pointer border-r ${methodBorderClass} ${
                                     isActive ? "border-b-2" : ""
                                 }`}
                                 onClick={(e) => handleTabClick(e, tab)}
                             >
-                                <div className="flex items-center min-w-0 max-w-48 flex-1 truncate m-1 text-sm">
+                                <div className={`flex items-center min-w-0 max-w-48 flex-1 truncate m-1 text-sm ${tabTextClass}`}>
                                     {getTabIcon(tab)}
                                     <span className="truncate">
                                         {getTabLabel(tab)}
                                     </span>
                                 </div>
                                 <button
-                                    className="ml-2"
+                                    className={`ml-2 ${tabTextClass}`}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         onCloseTab(tab.id);
